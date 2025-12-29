@@ -7,28 +7,17 @@ Simple self hosted ranking for Jackbox games
 - 📱 Mobile-friendly responsive design
 - 🎯 Score tracking for Jackbox games (0-10 scale)
 - 🏆 Real-time leaderboard with vote aggregation
-- 💾 PocketBase backend support with automatic user creation and game seeding
+- 💾 PocketBase backend for data persistence
 - 🔐 Secure authentication with user-specific score permissions
+- 🌙 Dark mode support with persistent preference
 - ✅ Comprehensive unit tests with Jest
 - 🔄 CI/CD with GitHub Actions
 
 ## Quick Start
 
-### Frontend Only (No Backend)
+### Prerequisites
 
-The app works standalone with localStorage. Just open `index.html` in a browser or use a simple HTTP server:
-
-```bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run serve
-
-# Open http://localhost:8080 in your browser
-```
-
-### With PocketBase Backend
+**PocketBase Backend Required:** This application requires a running PocketBase instance to function. It does not work in offline mode.
 
 1. **Download and install PocketBase** from https://pocketbase.io/
 
@@ -58,17 +47,40 @@ npm run serve
    - Create Rule: `@request.auth.id != '' && @request.auth.id = user`
    - Update Rule: `@request.auth.id != '' && @request.auth.id = user`
 
-4. **Run the app:**
+4. **Seed the database** (Optional - first time setup):
+   
+   Open `seed.html` in your browser to populate the database with initial Jackbox games from Party Pack 1:
    ```bash
+   npm run serve
+   # Then navigate to http://localhost:8080/seed.html
+   ```
+   
+   This will add the following games:
+   - You Don't Know Jack 2015
+   - Drawful
+   - Word Spud
+   - Fibbage XL
+   - Lie Swatter
+
+5. **Run the app:**
+   ```bash
+   npm install
    npm run serve
    ```
 
-5. **Login:** Enter your name - the app will automatically:
+6. **Login:** Enter your name - the app will automatically:
    - Create a PocketBase user with email `lower(name)@example.com`
-   - Seed the games collection with initial Party Pack 1 games (if empty)
    - Authenticate you and sync scores to the database
+   - Allow you to start ranking games
 
-The app will automatically connect to PocketBase at `http://127.0.0.1:8090` and sync scores in real-time.
+The app will connect to PocketBase at `http://127.0.0.1:8090` and sync scores in real-time.
+
+## Dark Mode
+
+The application includes a dark mode toggle:
+- Click the moon/sun icon in the header to toggle between light and dark themes
+- Your preference is automatically saved in localStorage
+- Dark mode provides reduced eye strain in low-light environments
 
 ## Development
 
@@ -87,7 +99,8 @@ npm run test:watch
 ```
 .
 ├── index.html           # Main HTML file
-├── styles.css           # CSS styles (mobile-first responsive)
+├── seed.html            # Database seeding utility
+├── styles.css           # CSS styles (mobile-first responsive with dark mode)
 ├── app.js               # Core application logic
 ├── __tests__/           # Unit tests
 │   └── app.test.js
@@ -99,9 +112,11 @@ npm run test:watch
 
 ## Usage
 
-1. **Login:** Enter your name and click Login
+1. **Login:** Enter your name and click Login (requires PocketBase to be running)
 2. **Score Games:** Use the + and - buttons to adjust scores (0-10 range)
-3. **View Leaderboard:** Tap the Leaderboard tab to see sorted scores from all users
+3. **View Leaderboard:** Tap the Leaderboard tab to see average scores from all users
+4. **Toggle Dark Mode:** Click the moon/sun icon in the header to switch themes
+5. **Seed Database:** Use `seed.html` to populate the database with initial games
 
 ## Technology Stack
 
