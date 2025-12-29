@@ -3,11 +3,12 @@ Simple self hosted ranking for Jackbox games
 
 ## Features
 
-- 🎮 Simple name-based login (no password required)
+- 🎮 Simple name-based login with automatic PocketBase authentication
 - 📱 Mobile-friendly responsive design
 - 🎯 Score tracking for Jackbox games (0-10 scale)
-- 🏆 Real-time leaderboard
-- 💾 PocketBase backend support with fallback to localStorage
+- 🏆 Real-time leaderboard with vote aggregation
+- 💾 PocketBase backend support with automatic user creation and game seeding
+- 🔐 Secure authentication with user-specific score permissions
 - ✅ Comprehensive unit tests with Jest
 - 🔄 CI/CD with GitHub Actions
 
@@ -42,17 +43,30 @@ npm run serve
    
    **Collection: `games`**
    - `name` (text, required)
-   - `image` (text, optional - URL to game image)
+   - `pack` (text, optional - Party Pack name)
+   - `img` (url, optional - URL to game image)
+   - List Rule: `""` (public read)
+   - View Rule: `""` (public read)
+   - Create Rule: `@request.auth.id != ""` (authenticated users)
 
    **Collection: `scores`**
-   - `user` (text, required)
-   - `game` (relation to games, required)
+   - `user` (relation to users collection, required)
+   - `game` (relation to games collection, required)
    - `score` (number, required, min: 0, max: 10)
+   - List Rule: `""` (public read for leaderboard)
+   - View Rule: `""` (public read)
+   - Create Rule: `@request.auth.id != '' && @request.auth.id = user`
+   - Update Rule: `@request.auth.id != '' && @request.auth.id = user`
 
 4. **Run the app:**
    ```bash
    npm run serve
    ```
+
+5. **Login:** Enter your name - the app will automatically:
+   - Create a PocketBase user with email `lower(name)@example.com`
+   - Seed the games collection with initial Party Pack 1 games (if empty)
+   - Authenticate you and sync scores to the database
 
 The app will automatically connect to PocketBase at `http://127.0.0.1:8090` and sync scores in real-time.
 
