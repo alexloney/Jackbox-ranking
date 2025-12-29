@@ -304,26 +304,52 @@ function unsubscribeAll() {
 
 // Render Leaderboard
 async function renderLeaderboard() {
-    const allScores = await getAllScores();
+    // 1. Fetch raw scores
+    const allVotes = await getAllVotes();
     
-    if (allScores.length === 0) {
+    if (allVotes.length === 0) {
         leaderboardContainer.innerHTML = `
-            <div class="leaderboard-header">Leaderboard</div>
+            <div class="leaderboard-header">Game Rankings</div>
             <div class="empty-state">No scores yet. Start scoring games!</div>
         `;
         return;
     }
+
+    // 2. Aggregate scores by Game
+    // Map<GameName, { total: number, count: number, voters: string[] }>
+    const gameStats = {};
+
+    allVotes.forEach(vote => {
+        const gameName = vote.gameName;
+        if (!gameStats[gameName]) {
+            gameStats[gameName] = { total: 0, count: 0, voters: [] };
+        }
+        gameStats[gameName].total += vote.score;
+        gameStats[gameName].count += 1;
+        // Optional: track who voted for the "details" view
+        gameStats[gameName].voters.push(`${vote.user} (${vote.score})`);
+    });
+
+    // 3. Convert to array and calculate average
+    const rankedGames = Object.entries(gameStats).map(([name, stats]) => ({
+        name,
+        average: stats.total / stats.count,
+        count: stats.count,
+        voters: stats.voters
+    }));
+
+    // 4. Sort by Average Descending
+    rankedGames.sort((a, b) => b.average - a.average);
+
+    // 5. Render
+    leaderboardContainer.innerHTML = '<div class="leaderboard-header">Game Rankings</div>';
     
-    // Sort by total score descending
-    allScores.sort((a, b) => b.totalScore - a.totalScore);
-    
-    leaderboardContainer.innerHTML = '<div class="leaderboard-header">Leaderboard</div>';
-    
-    allScores.forEach((item, index) => {
+    rankedGames.forEach((item, index) => {
         const rank = index + 1;
         const leaderboardItem = document.createElement('div');
         leaderboardItem.className = 'leaderboard-item';
         
+        // Dynamic rank styling
         let rankClass = '';
         if (rank === 1) rankClass = 'gold';
         else if (rank === 2) rankClass = 'silver';
@@ -332,41 +358,68 @@ async function renderLeaderboard() {
         leaderboardItem.innerHTML = `
             <div class="rank ${rankClass}">${rank}</div>
             <div class="game-details">
-                <div class="game-title">${item.game}</div>
-                <div class="player-name">${item.user}</div>
+                <div class="game-title">${item.name}</div>
+                <div class="player-name">${item.count} votes</div>
             </div>
-            <div class="total-score">${item.totalScore}</div>
+            <div class="total-score">${item.average.toFixed(1)}</div>
         `;
-        
+        // Optional: Click to expand 'voters' could go here
         leaderboardContainer.appendChild(leaderboardItem);
     });
 }
 
-// Get All Scores
-async function getAllScores() {
+// Helper to get raw vote data
+async function getAllVotes() {
     try {
         if (pb && pb.collection) {
-            // Load from PocketBase
+            // Ensure you expand 'game' to get the name
             const records = await pb.collection('scores').getFullList({
                 expand: 'game',
+                sort: 'created', // Consistent ordering
             });
-            
-            return records.map(record => ({
-                user: record.user,
-                game: record.expand?.game?.name || 'Unknown Game',
-                totalScore: record.score || 0,
+            return records.map(r => ({
+                user: r.user,
+                gameName: r.expand?.game?.name || 'Unknown',
+                score: r.score
             }));
         } else {
-            // Use local data
-            return getLocalScores();
+            // Adapt your local storage logic here to return the same structure
+            return getLocalVotes();
         }
-    } catch (error) {
-        console.warn('Failed to load scores from PocketBase, using local data', error);
-        return getLocalScores();
+    } catch (e) {
+        console.warn('Failed to fetch votes in getAllVotes:', e);
+        return [];
     }
 }
 
-// Get Local Scores
+// Get Local Votes (for localStorage fallback)
+function getLocalVotes() {
+    const allVotes = [];
+    
+    // Get all user scores from localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('scores_')) {
+            const username = key.replace('scores_', '');
+            const userScores = JSON.parse(localStorage.getItem(key));
+            
+            Object.entries(userScores).forEach(([gameId, score]) => {
+                const game = games.find(g => g.id === gameId);
+                if (game && score > 0) {
+                    allVotes.push({
+                        user: username,
+                        gameName: game.name,
+                        score: score,
+                    });
+                }
+            });
+        }
+    }
+    
+    return allVotes;
+}
+
+// Get Local Scores (deprecated - kept for backward compatibility with tests)
 function getLocalScores() {
     const allScores = [];
     
@@ -401,6 +454,8 @@ if (typeof module !== 'undefined' && module.exports) {
         updateScore,
         getDemoGames,
         getLocalScores,
+        getLocalVotes,
+        getAllVotes,
         switchTab,
     };
 }

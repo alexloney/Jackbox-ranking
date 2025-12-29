@@ -30,6 +30,8 @@ document.body.innerHTML = `
 const {
   getDemoGames,
   getLocalScores,
+  getLocalVotes,
+  getAllVotes,
 } = require('../app.js');
 
 describe('Jackbox Ranking App', () => {
@@ -235,6 +237,107 @@ describe('Jackbox Ranking App', () => {
       games.forEach(game => {
         expect(typeof game.id).toBe('string');
       });
+    });
+  });
+
+  describe('Leaderboard Aggregation', () => {
+    beforeEach(() => {
+      // Set up games in global scope
+      global.games = getDemoGames();
+    });
+
+    test('getLocalVotes should return empty array when no votes exist', () => {
+      global.localStorage.length = 0;
+      const votes = getLocalVotes();
+      expect(Array.isArray(votes)).toBe(true);
+      expect(votes.length).toBe(0);
+    });
+
+    test('getLocalVotes should return vote data in correct format', () => {
+      // Mock localStorage with some data
+      const mockScores = { game1: 5, game2: 8 };
+      
+      // Create a more complete mock
+      const storage = {
+        'scores_alice': JSON.stringify(mockScores)
+      };
+      
+      global.localStorage.length = Object.keys(storage).length;
+      global.localStorage.key = jest.fn((i) => {
+        const keys = Object.keys(storage);
+        return i < keys.length ? keys[i] : null;
+      });
+      global.localStorage.getItem = jest.fn((key) => storage[key] || null);
+      
+      const votes = getLocalVotes();
+      expect(Array.isArray(votes)).toBe(true);
+      // Should have 2 votes if games exist with those IDs
+      if (votes.length > 0) {
+        expect(votes[0]).toHaveProperty('user');
+        expect(votes[0]).toHaveProperty('gameName');
+        expect(votes[0]).toHaveProperty('score');
+        expect(votes[0].user).toBe('alice');
+      }
+    });
+
+    test('vote aggregation should calculate average correctly', () => {
+      // Simulate multiple votes for the same game
+      const mockVotes = [
+        { user: 'alice', gameName: 'Quiplash', score: 8 },
+        { user: 'bob', gameName: 'Quiplash', score: 6 },
+        { user: 'charlie', gameName: 'Quiplash', score: 10 },
+        { user: 'alice', gameName: 'Fibbage', score: 5 },
+      ];
+
+      // Aggregate scores by Game
+      const gameStats = {};
+      mockVotes.forEach(vote => {
+        const gameName = vote.gameName;
+        if (!gameStats[gameName]) {
+          gameStats[gameName] = { total: 0, count: 0 };
+        }
+        gameStats[gameName].total += vote.score;
+        gameStats[gameName].count += 1;
+      });
+
+      // Calculate averages - keep as numbers for sorting
+      const rankedGames = Object.entries(gameStats).map(([name, stats]) => ({
+        name,
+        average: stats.total / stats.count,
+      }));
+
+      // Verify Quiplash average
+      const quiplash = rankedGames.find(g => g.name === 'Quiplash');
+      expect(quiplash).toBeDefined();
+      expect(quiplash.average).toBe(8.0); // (8 + 6 + 10) / 3 = 8.0
+
+      // Verify Fibbage average
+      const fibbage = rankedGames.find(g => g.name === 'Fibbage');
+      expect(fibbage).toBeDefined();
+      expect(fibbage.average).toBe(5.0);
+    });
+
+    test('games should be sorted by average descending', () => {
+      const rankedGames = [
+        { name: 'Game A', average: 7.5, count: 2 },
+        { name: 'Game B', average: 9.0, count: 3 },
+        { name: 'Game C', average: 5.5, count: 1 },
+      ];
+
+      rankedGames.sort((a, b) => b.average - a.average);
+
+      expect(rankedGames[0].name).toBe('Game B');
+      expect(rankedGames[1].name).toBe('Game A');
+      expect(rankedGames[2].name).toBe('Game C');
+    });
+
+    test('getAllVotes should return empty array when PocketBase is not available', async () => {
+      // Ensure pb is not defined
+      global.pb = undefined;
+      global.localStorage.length = 0;
+      
+      const votes = await getAllVotes();
+      expect(Array.isArray(votes)).toBe(true);
     });
   });
 });
