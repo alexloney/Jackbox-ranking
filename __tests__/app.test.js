@@ -19,6 +19,10 @@ document.body.innerHTML = `
   <div id="app-screen" class="screen">
     <span id="username-display"></span>
     <button id="logout-btn"></button>
+    <button id="theme-toggle">
+      <span class="sun-icon"></span>
+      <span class="moon-icon"></span>
+    </button>
     <div id="games-container"></div>
     <div id="leaderboard-container"></div>
     <div id="scoring-tab" class="tab-pane active"></div>
@@ -28,65 +32,12 @@ document.body.innerHTML = `
 
 // Import the module
 const {
-  getDemoGames,
-  getLocalScores,
-  getLocalVotes,
   getAllVotes,
+  toggleTheme,
+  initTheme,
 } = require('../app.js');
 
 describe('Jackbox Ranking App', () => {
-  describe('getDemoGames', () => {
-    test('should return an array of games', () => {
-      const games = getDemoGames();
-      expect(Array.isArray(games)).toBe(true);
-      expect(games.length).toBeGreaterThan(0);
-    });
-
-    test('each game should have required properties', () => {
-      const games = getDemoGames();
-      games.forEach(game => {
-        expect(game).toHaveProperty('id');
-        expect(game).toHaveProperty('name');
-        expect(game).toHaveProperty('image');
-      });
-    });
-
-    test('game ids should be unique', () => {
-      const games = getDemoGames();
-      const ids = games.map(g => g.id);
-      const uniqueIds = new Set(ids);
-      expect(uniqueIds.size).toBe(ids.length);
-    });
-  });
-
-  describe('getLocalScores', () => {
-    test('should return empty array when no scores exist', () => {
-      global.localStorage.length = 0;
-      const scores = getLocalScores();
-      expect(Array.isArray(scores)).toBe(true);
-      expect(scores.length).toBe(0);
-    });
-
-    test('should parse and return local scores when data exists', () => {
-      // Mock localStorage with some data
-      const mockScores = { game1: 5, game2: 8 };
-      global.localStorage.length = 1;
-      global.localStorage.key = jest.fn((i) => i === 0 ? 'scores_testuser' : null);
-      global.localStorage.getItem = jest.fn((key) => {
-        if (key === 'scores_testuser') {
-          return JSON.stringify(mockScores);
-        }
-        return null;
-      });
-      
-      // Need to set up games array in the global scope
-      global.games = getDemoGames();
-      
-      const scores = getLocalScores();
-      expect(Array.isArray(scores)).toBe(true);
-    });
-  });
-
   describe('Score Management', () => {
     test('scores should be between 0 and 10', () => {
       const minScore = 0;
@@ -184,6 +135,11 @@ describe('Jackbox Ranking App', () => {
       const leaderboardContainer = document.getElementById('leaderboard-container');
       expect(leaderboardContainer).not.toBeNull();
     });
+    
+    test('theme toggle button should exist', () => {
+      const themeToggle = document.getElementById('theme-toggle');
+      expect(themeToggle).not.toBeNull();
+    });
   });
 
   describe('Tab Navigation', () => {
@@ -231,55 +187,9 @@ describe('Jackbox Ranking App', () => {
       const score = 5;
       expect(typeof score).toBe('number');
     });
-
-    test('game id should be a string', () => {
-      const games = getDemoGames();
-      games.forEach(game => {
-        expect(typeof game.id).toBe('string');
-      });
-    });
   });
 
   describe('Leaderboard Aggregation', () => {
-    beforeEach(() => {
-      // Set up games in global scope
-      global.games = getDemoGames();
-    });
-
-    test('getLocalVotes should return empty array when no votes exist', () => {
-      global.localStorage.length = 0;
-      const votes = getLocalVotes();
-      expect(Array.isArray(votes)).toBe(true);
-      expect(votes.length).toBe(0);
-    });
-
-    test('getLocalVotes should return vote data in correct format', () => {
-      // Mock localStorage with some data
-      const mockScores = { game1: 5, game2: 8 };
-      
-      // Create a more complete mock
-      const storage = {
-        'scores_alice': JSON.stringify(mockScores)
-      };
-      
-      global.localStorage.length = Object.keys(storage).length;
-      global.localStorage.key = jest.fn((i) => {
-        const keys = Object.keys(storage);
-        return i < keys.length ? keys[i] : null;
-      });
-      global.localStorage.getItem = jest.fn((key) => storage[key] || null);
-      
-      const votes = getLocalVotes();
-      expect(Array.isArray(votes)).toBe(true);
-      // Should have 2 votes if games exist with those IDs
-      if (votes.length > 0) {
-        expect(votes[0]).toHaveProperty('user');
-        expect(votes[0]).toHaveProperty('gameName');
-        expect(votes[0]).toHaveProperty('score');
-        expect(votes[0].user).toBe('alice');
-      }
-    });
-
     test('vote aggregation should calculate average correctly', () => {
       // Simulate multiple votes for the same game
       const mockVotes = [
@@ -334,10 +244,49 @@ describe('Jackbox Ranking App', () => {
     test('getAllVotes should return empty array when PocketBase is not available', async () => {
       // Ensure pb is not defined
       global.pb = undefined;
-      global.localStorage.length = 0;
       
       const votes = await getAllVotes();
       expect(Array.isArray(votes)).toBe(true);
+    });
+  });
+
+  describe('Dark Mode', () => {
+    beforeEach(() => {
+      // Clear localStorage and body classes before each test
+      global.localStorage.clear();
+      document.body.classList.remove('dark-mode');
+    });
+
+    test('initTheme should apply dark mode if saved in localStorage', () => {
+      global.localStorage.setItem('jackbox_theme', 'dark');
+      initTheme();
+      expect(document.body.classList.contains('dark-mode')).toBe(true);
+    });
+
+    test('initTheme should not apply dark mode if light theme saved', () => {
+      global.localStorage.setItem('jackbox_theme', 'light');
+      initTheme();
+      expect(document.body.classList.contains('dark-mode')).toBe(false);
+    });
+
+    test('initTheme should not apply dark mode if no theme saved', () => {
+      initTheme();
+      expect(document.body.classList.contains('dark-mode')).toBe(false);
+    });
+
+    test('toggleTheme should toggle dark mode class', () => {
+      expect(document.body.classList.contains('dark-mode')).toBe(false);
+      toggleTheme();
+      expect(document.body.classList.contains('dark-mode')).toBe(true);
+      toggleTheme();
+      expect(document.body.classList.contains('dark-mode')).toBe(false);
+    });
+
+    test('toggleTheme should save preference to localStorage', () => {
+      toggleTheme();
+      expect(global.localStorage.getItem('jackbox_theme')).toBe('dark');
+      toggleTheme();
+      expect(global.localStorage.getItem('jackbox_theme')).toBe('light');
     });
   });
 });
