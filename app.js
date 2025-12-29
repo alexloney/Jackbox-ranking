@@ -30,12 +30,79 @@ const gamesContainer = document.getElementById('games-container');
 const leaderboardContainer = document.getElementById('leaderboard-container');
 const navBtns = document.querySelectorAll('.nav-btn');
 
+// Authenticate User with PocketBase
+async function authenticateUser(username) {
+    if (!pb || !pb.collection) return;
+    
+    const email = `${username.toLowerCase()}@example.com`;
+    const password = username.toLowerCase();
+    
+    try {
+        // Try to authenticate existing user
+        await pb.collection('users').authWithPassword(email, password);
+    } catch (error) {
+        // If authentication fails, try to create the user
+        try {
+            await pb.collection('users').create({
+                email: email,
+                password: password,
+                passwordConfirm: password,
+                emailVisibility: true,
+            });
+            // Authenticate after creation
+            await pb.collection('users').authWithPassword(email, password);
+        } catch (createError) {
+            console.error('Failed to create user:', createError);
+            throw createError;
+        }
+    }
+}
+
+// Initialize Database and Seed Data
+async function initializeDatabase() {
+    if (!pb || !pb.collection) return;
+    
+    try {
+        // Check if Games collection has any records
+        const existingGames = await pb.collection('games').getList(1, 1);
+        
+        // If no games exist, seed the collection
+        if (existingGames.items.length === 0) {
+            const gamesToSeed = [
+                { name: 'You Don\'t Know Jack 2015', pack: 'Party Pack 1', img: '' },
+                { name: 'Drawful', pack: 'Party Pack 1', img: '' },
+                { name: 'Word Spud', pack: 'Party Pack 1', img: '' },
+            ];
+            
+            for (const game of gamesToSeed) {
+                await pb.collection('games').create(game);
+            }
+            
+            console.log('Database seeded with initial games');
+        }
+    } catch (error) {
+        console.warn('Database initialization warning:', error);
+        // Collections might not exist yet - this is handled by PocketBase admin UI
+    }
+}
+
 // Initialize App
 async function initApp() {
     // Check for existing session
     const savedUser = localStorage.getItem('jackbox_user');
     if (savedUser) {
         currentUser = savedUser;
+        
+        // Try to re-authenticate with PocketBase
+        if (pb && pb.collection) {
+            try {
+                await authenticateUser(savedUser);
+                await initializeDatabase();
+            } catch (error) {
+                console.warn('PocketBase re-authentication failed, continuing in local mode:', error);
+            }
+        }
+        
         showAppScreen();
         await loadGames();
         setupRealtimeSubscriptions();
@@ -51,15 +118,26 @@ async function initApp() {
 }
 
 // Handle Login
-function handleLogin(e) {
+async function handleLogin(e) {
     e.preventDefault();
     const username = usernameInput.value.trim();
     
     if (username) {
         currentUser = username;
         localStorage.setItem('jackbox_user', username);
+        
+        // Authenticate with PocketBase if available
+        if (pb && pb.collection) {
+            try {
+                await authenticateUser(username);
+                await initializeDatabase();
+            } catch (error) {
+                console.warn('PocketBase authentication failed, continuing in local mode:', error);
+            }
+        }
+        
         showAppScreen();
-        loadGames();
+        await loadGames();
         setupRealtimeSubscriptions();
     }
 }
@@ -69,6 +147,12 @@ function handleLogout() {
     currentUser = null;
     localStorage.removeItem('jackbox_user');
     unsubscribeAll();
+    
+    // Clear PocketBase auth state
+    if (pb && pb.authStore) {
+        pb.authStore.clear();
+    }
+    
     showLoginScreen();
 }
 
@@ -116,7 +200,13 @@ async function loadGames() {
             const records = await pb.collection('games').getFullList({
                 sort: 'name',
             });
-            games = records;
+            // Map PocketBase records to expected format
+            games = records.map(record => ({
+                id: record.id,
+                name: record.name,
+                image: record.img || '',
+                pack: record.pack || '',
+            }));
         } else {
             // Use demo data
             games = getDemoGames();
@@ -242,21 +332,19 @@ async function updateScore(gameId, delta) {
 
 // Sync Score to PocketBase
 async function syncScoreToPocketBase(gameId, score) {
-    if (!pb || !pb.collection) return;
+    if (!pb || !pb.collection || !pb.authStore.model) return;
     
     try {
-        // Properly escape values for filter to prevent injection
-        // Escape both quotes and backslashes
-        const escapedUser = currentUser.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const escapedGameId = gameId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        // Get the authenticated user ID
+        const userId = pb.authStore.model.id;
         
         // Check if score record exists
         const records = await pb.collection('scores').getFullList({
-            filter: `user = "${escapedUser}" && game = "${escapedGameId}"`,
+            filter: `user = "${userId}" && game = "${gameId}"`,
         });
         
         const data = {
-            user: currentUser,
+            user: userId,
             game: gameId,
             score: score,
         };
@@ -372,13 +460,13 @@ async function renderLeaderboard() {
 async function getAllVotes() {
     try {
         if (pb && pb.collection) {
-            // Ensure you expand 'game' to get the name
+            // Ensure you expand 'game' and 'user' to get the names
             const records = await pb.collection('scores').getFullList({
-                expand: 'game',
+                expand: 'game,user',
                 sort: 'created', // Consistent ordering
             });
             return records.map(r => ({
-                user: r.user,
+                user: r.expand?.user?.email?.replace('@example.com', '') || 'Unknown',
                 gameName: r.expand?.game?.name || 'Unknown',
                 score: r.score
             }));
@@ -457,6 +545,8 @@ if (typeof module !== 'undefined' && module.exports) {
         getLocalVotes,
         getAllVotes,
         switchTab,
+        authenticateUser,
+        initializeDatabase,
     };
 }
 
