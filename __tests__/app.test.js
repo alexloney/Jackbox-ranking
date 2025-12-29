@@ -303,10 +303,10 @@ describe('Jackbox Ranking App', () => {
         gameStats[gameName].count += 1;
       });
 
-      // Calculate averages
+      // Calculate averages - keep as numbers for sorting
       const rankedGames = Object.entries(gameStats).map(([name, stats]) => ({
         name,
-        average: parseFloat((stats.total / stats.count).toFixed(1)),
+        average: stats.total / stats.count,
       }));
 
       // Verify Quiplash average
@@ -322,9 +322,9 @@ describe('Jackbox Ranking App', () => {
 
     test('games should be sorted by average descending', () => {
       const rankedGames = [
-        { name: 'Game A', average: '7.5', count: 2 },
-        { name: 'Game B', average: '9.0', count: 3 },
-        { name: 'Game C', average: '5.5', count: 1 },
+        { name: 'Game A', average: 7.5, count: 2 },
+        { name: 'Game B', average: 9.0, count: 3 },
+        { name: 'Game C', average: 5.5, count: 1 },
       ];
 
       rankedGames.sort((a, b) => b.average - a.average);

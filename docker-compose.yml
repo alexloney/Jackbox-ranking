@@ -8,6 +8,8 @@ services:
     command:
       - --encryptionEnv=PB_ENCRYPTION_KEY
     environment:
+      # WARNING: Change this to a secure random key for production use!
+      # Generate a secure key with: openssl rand -hex 32
       PB_ENCRYPTION_KEY: "secret123"
     volumes:
       - ./pb_data:/pb/pb_data

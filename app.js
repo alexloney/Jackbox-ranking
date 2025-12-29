@@ -333,7 +333,7 @@ async function renderLeaderboard() {
     // 3. Convert to array and calculate average
     const rankedGames = Object.entries(gameStats).map(([name, stats]) => ({
         name,
-        average: (stats.total / stats.count).toFixed(1),
+        average: stats.total / stats.count,
         count: stats.count,
         voters: stats.voters
     }));
@@ -361,7 +361,7 @@ async function renderLeaderboard() {
                 <div class="game-title">${item.name}</div>
                 <div class="player-name">${item.count} votes</div>
             </div>
-            <div class="total-score">${item.average}</div>
+            <div class="total-score">${item.average.toFixed(1)}</div>
         `;
         // Optional: Click to expand 'voters' could go here
         leaderboardContainer.appendChild(leaderboardItem);
