@@ -375,6 +375,7 @@ async function getAllVotes() {
             // Ensure you expand 'game' to get the name
             const records = await pb.collection('scores').getFullList({
                 expand: 'game',
+                sort: 'created', // Consistent ordering
             });
             return records.map(r => ({
                 user: r.user,
@@ -386,7 +387,7 @@ async function getAllVotes() {
             return getLocalVotes();
         }
     } catch (e) {
-        console.warn(e);
+        console.warn('Failed to fetch votes in getAllVotes:', e);
         return [];
     }
 }

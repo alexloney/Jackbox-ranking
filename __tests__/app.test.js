@@ -254,9 +254,6 @@ describe('Jackbox Ranking App', () => {
     });
 
     test('getLocalVotes should return vote data in correct format', () => {
-      // Ensure games is set up in the right scope
-      global.games = getDemoGames();
-      
       // Mock localStorage with some data
       const mockScores = { game1: 5, game2: 8 };
       
