@@ -338,9 +338,13 @@ async function syncScoreToPocketBase(gameId, score) {
         // Get the authenticated user ID
         const userId = pb.authStore.model.id;
         
+        // Escape filter values to prevent injection
+        const escapedUserId = userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const escapedGameId = gameId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        
         // Check if score record exists
         const records = await pb.collection('scores').getFullList({
-            filter: `user = "${userId}" && game = "${gameId}"`,
+            filter: `user = "${escapedUserId}" && game = "${escapedGameId}"`,
         });
         
         const data = {
