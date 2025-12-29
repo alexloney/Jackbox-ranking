@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jackbox Ranking</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+        <div class="login-container">
+            <h1>Jackbox Ranking</h1>
+            <form id="login-form">
+                <input 
+                    type="text" 
+                    id="username-input" 
+                    placeholder="Enter your name" 
+                    required 
+                    autocomplete="name"
+                    maxlength="50"
+                />
+                <button type="submit">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main App Screen -->
+    <div id="app-screen" class="screen">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="user-info">
+                <span id="greeting">HI <span id="username-display"></span></span>
+                <button id="logout-btn" class="logout-btn">Logout</button>
+            </div>
+        </header>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Scoring Tab -->
+            <div id="scoring-tab" class="tab-pane active">
+                <div id="games-container" class="games-container">
+                    <!-- Game cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Leaderboard Tab -->
+            <div id="leaderboard-tab" class="tab-pane">
+                <div id="leaderboard-container" class="leaderboard-container">
+                    <!-- Leaderboard will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="scoring-tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span>Scoring</span>
+            </button>
+            <button class="nav-btn" data-tab="leaderboard-tab">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>
+                </svg>
+                <span>Leaderboard</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.19.0/dist/pocketbase.umd.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
