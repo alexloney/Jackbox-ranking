@@ -18,6 +18,17 @@
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     --hover-bg: #f1f5f9;
+    
+    /* Status message colors */
+    --success-bg: #dcfce7;
+    --success-text: #166534;
+    --success-border: #bbf7d0;
+    --error-bg: #fee2e2;
+    --error-text: #991b1b;
+    --error-border: #fecaca;
+    --info-bg: #dbeafe;
+    --info-text: #1e40af;
+    --info-border: #bfdbfe;
 }
 
 /* Dark mode variables */
@@ -34,6 +45,17 @@ body.dark-mode {
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
     --hover-bg: #334155;
+    
+    /* Status message colors for dark mode */
+    --success-bg: #064e3b;
+    --success-text: #6ee7b7;
+    --success-border: #047857;
+    --error-bg: #7f1d1d;
+    --error-text: #fca5a5;
+    --error-border: #991b1b;
+    --info-bg: #1e3a8a;
+    --info-text: #93c5fd;
+    --info-border: #1e40af;
 }
 
 body {
