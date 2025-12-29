@@ -17,6 +17,7 @@
     --danger-color: #ef4444;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    --hover-bg: #f1f5f9;
 }
 
 /* Dark mode variables */
@@ -32,6 +33,7 @@ body.dark-mode {
     --danger-color: #f87171;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    --hover-bg: #334155;
 }
 
 body {
@@ -159,7 +161,7 @@ body {
 }
 
 .theme-toggle:hover {
-    background: var(--bg-color);
+    background: var(--hover-bg);
     border-color: var(--primary-color);
 }
 
@@ -327,7 +329,7 @@ body {
 }
 
 .leaderboard-item:hover {
-    background: var(--bg-color);
+    background: var(--hover-bg);
 }
 
 .leaderboard-item:last-child {
