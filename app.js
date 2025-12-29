@@ -3,9 +3,13 @@ const PB_URL = 'http://127.0.0.1:8090';
 let pb;
 
 // Initialize PocketBase
-try {
-    pb = new PocketBase(PB_URL);
-} catch (error) {
+if (typeof PocketBase !== 'undefined') {
+    try {
+        pb = new PocketBase(PB_URL);
+    } catch (error) {
+        console.warn('Failed to initialize PocketBase, running in demo mode');
+    }
+} else {
     console.warn('PocketBase SDK not loaded, running in demo mode');
 }
 
@@ -241,9 +245,14 @@ async function syncScoreToPocketBase(gameId, score) {
     if (!pb || !pb.collection) return;
     
     try {
+        // Properly escape values for filter to prevent injection
+        // Escape both quotes and backslashes
+        const escapedUser = currentUser.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        const escapedGameId = gameId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        
         // Check if score record exists
         const records = await pb.collection('scores').getFullList({
-            filter: `user = "${currentUser}" && game = "${gameId}"`,
+            filter: `user = "${escapedUser}" && game = "${escapedGameId}"`,
         });
         
         const data = {

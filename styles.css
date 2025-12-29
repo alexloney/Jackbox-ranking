@@ -197,6 +197,7 @@ body {
     color: white;
     font-size: 3rem;
     font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .game-image img {
