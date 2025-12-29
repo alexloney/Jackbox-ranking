@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jackbox Ranking - Database Seeding</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .seed-container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--card-bg);
+            border-radius: 1rem;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .seed-container h1 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+        
+        .seed-container p {
+            margin-bottom: 1.5rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        
+        .seed-btn {
+            width: 100%;
+            padding: 0.875rem;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 1rem;
+        }
+        
+        .seed-btn:hover:not(:disabled) {
+            background: var(--primary-dark);
+        }
+        
+        .seed-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status-message {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: var(--success-bg);
+            color: var(--success-text);
+            border: 1px solid var(--success-border);
+        }
+        
+        .status-message.error {
+            background: var(--error-bg);
+            color: var(--error-text);
+            border: 1px solid var(--error-border);
+        }
+        
+        .status-message.info {
+            background: var(--info-bg);
+            color: var(--info-text);
+            border: 1px solid var(--info-border);
+        }
+        
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="seed-container">
+        <h1>Database Seeding</h1>
+        <p>
+            This utility will seed the PocketBase database with initial Jackbox games from Party Pack 1.
+            Only use this if you have set up PocketBase and created the required collections.
+        </p>
+        <p>
+            <strong>Prerequisites:</strong>
+        </p>
+        <ul style="margin-bottom: 1.5rem; color: var(--text-secondary); line-height: 1.8;">
+            <li>PocketBase must be running at <code>http://127.0.0.1:8090</code></li>
+            <li>The <code>games</code> collection must exist</li>
+            <li>You must have admin access or proper permissions</li>
+        </ul>
+        
+        <button id="seed-btn" class="seed-btn">Seed Database</button>
+        <div id="status-message" class="status-message"></div>
+        
+        <a href="index.html" class="back-link">← Back to Jackbox Ranking</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.19.0/dist/pocketbase.umd.js"></script>
+    <script>
+        const PB_URL = 'http://127.0.0.1:8090';
+        let pb;
+        
+        // Initialize PocketBase
+        if (typeof PocketBase !== 'undefined') {
+            try {
+                pb = new PocketBase(PB_URL);
+            } catch (error) {
+                console.error('Failed to initialize PocketBase:', error);
+                showStatus('Failed to initialize PocketBase: ' + error.message, 'error');
+            }
+        } else {
+            showStatus('PocketBase SDK not loaded', 'error');
+        }
+        
+        // Status message helper
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+        }
+        
+        // Seed database function
+        async function seedDatabase() {
+            const btn = document.getElementById('seed-btn');
+            
+            if (!pb || !pb.collection) {
+                showStatus('Error: PocketBase is not available. Please ensure it is running at ' + PB_URL, 'error');
+                return;
+            }
+            
+            btn.disabled = true;
+            showStatus('Checking database...', 'info');
+            
+            try {
+                // Check if Games collection has any records
+                const existingGames = await pb.collection('games').getList(1, 1);
+                
+                if (existingGames.items.length > 0) {
+                    showStatus('Database already has games. No seeding needed.', 'info');
+                    btn.disabled = false;
+                    return;
+                }
+                
+                // Seed the collection
+                const gamesToSeed = [
+                    { name: 'You Don\'t Know Jack 2015', pack: 'Party Pack 1', img: '' },
+                    { name: 'Drawful', pack: 'Party Pack 1', img: '' },
+                    { name: 'Word Spud', pack: 'Party Pack 1', img: '' },
+                    { name: 'Fibbage XL', pack: 'Party Pack 1', img: '' },
+                    { name: 'Lie Swatter', pack: 'Party Pack 1', img: '' },
+                ];
+                
+                showStatus('Seeding database with ' + gamesToSeed.length + ' games...', 'info');
+                
+                for (const game of gamesToSeed) {
+                    await pb.collection('games').create(game);
+                }
+                
+                showStatus('Success! Database seeded with ' + gamesToSeed.length + ' games from Party Pack 1.', 'success');
+                
+            } catch (error) {
+                console.error('Seeding error:', error);
+                showStatus('Error: ' + error.message + '. Make sure the games collection exists and you have proper permissions.', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        // Setup event listener
+        document.getElementById('seed-btn').addEventListener('click', seedDatabase);
+    </script>
+</body>
+</html>

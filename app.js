@@ -7,10 +7,10 @@ if (typeof PocketBase !== 'undefined') {
     try {
         pb = new PocketBase(PB_URL);
     } catch (error) {
-        console.warn('Failed to initialize PocketBase, running in demo mode');
+        console.error('Failed to initialize PocketBase:', error);
     }
 } else {
-    console.warn('PocketBase SDK not loaded, running in demo mode');
+    console.error('PocketBase SDK not loaded');
 }
 
 // App State
@@ -26,13 +26,16 @@ const loginForm = document.getElementById('login-form');
 const usernameInput = document.getElementById('username-input');
 const usernameDisplay = document.getElementById('username-display');
 const logoutBtn = document.getElementById('logout-btn');
+const themeToggle = document.getElementById('theme-toggle');
 const gamesContainer = document.getElementById('games-container');
 const leaderboardContainer = document.getElementById('leaderboard-container');
 const navBtns = document.querySelectorAll('.nav-btn');
 
 // Authenticate User with PocketBase
 async function authenticateUser(username) {
-    if (!pb || !pb.collection) return;
+    if (!pb || !pb.collection) {
+        throw new Error('Backend database is not available. Please ensure PocketBase is running.');
+    }
     
     const email = `${username.toLowerCase()}@example.com`;
     const password = username.toLowerCase();
@@ -58,63 +61,74 @@ async function authenticateUser(username) {
     }
 }
 
-// Initialize Database and Seed Data
-async function initializeDatabase() {
-    if (!pb || !pb.collection) return;
-    
-    try {
-        // Check if Games collection has any records
-        const existingGames = await pb.collection('games').getList(1, 1);
-        
-        // If no games exist, seed the collection
-        if (existingGames.items.length === 0) {
-            const gamesToSeed = [
-                { name: 'You Don\'t Know Jack 2015', pack: 'Party Pack 1', img: '' },
-                { name: 'Drawful', pack: 'Party Pack 1', img: '' },
-                { name: 'Word Spud', pack: 'Party Pack 1', img: '' },
-            ];
-            
-            for (const game of gamesToSeed) {
-                await pb.collection('games').create(game);
-            }
-            
-            console.log('Database seeded with initial games');
-        }
-    } catch (error) {
-        console.warn('Database initialization warning:', error);
-        // Collections might not exist yet - this is handled by PocketBase admin UI
-    }
-}
+
 
 // Initialize App
 async function initApp() {
+    // Initialize theme
+    initTheme();
+    
     // Check for existing session
     const savedUser = localStorage.getItem('jackbox_user');
     if (savedUser) {
         currentUser = savedUser;
         
         // Try to re-authenticate with PocketBase
-        if (pb && pb.collection) {
-            try {
-                await authenticateUser(savedUser);
-                await initializeDatabase();
-            } catch (error) {
-                console.warn('PocketBase re-authentication failed, continuing in local mode:', error);
-            }
+        try {
+            await authenticateUser(savedUser);
+            showAppScreen();
+            await loadGames();
+            setupRealtimeSubscriptions();
+        } catch (error) {
+            console.error('Failed to re-authenticate on app init:', error);
+            alert('Error: Cannot connect to the backend database. Please ensure PocketBase is running at ' + PB_URL);
+            handleLogout();
         }
-        
-        showAppScreen();
-        await loadGames();
-        setupRealtimeSubscriptions();
     }
     
     // Setup event listeners
     loginForm.addEventListener('submit', handleLogin);
     logoutBtn.addEventListener('click', handleLogout);
     
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+    
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
+}
+
+// Theme Management
+function initTheme() {
+    const savedTheme = localStorage.getItem('jackbox_theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        updateThemeIcon(true);
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('jackbox_theme', isDark ? 'dark' : 'light');
+    updateThemeIcon(isDark);
+}
+
+function updateThemeIcon(isDark) {
+    if (!themeToggle) return;
+    
+    const sunIcon = themeToggle.querySelector('.sun-icon');
+    const moonIcon = themeToggle.querySelector('.moon-icon');
+    
+    if (!sunIcon || !moonIcon) return;
+    
+    if (isDark) {
+        sunIcon.style.display = 'none';
+        moonIcon.style.display = 'block';
+    } else {
+        sunIcon.style.display = 'block';
+        moonIcon.style.display = 'none';
+    }
 }
 
 // Handle Login
@@ -126,19 +140,18 @@ async function handleLogin(e) {
         currentUser = username;
         localStorage.setItem('jackbox_user', username);
         
-        // Authenticate with PocketBase if available
-        if (pb && pb.collection) {
-            try {
-                await authenticateUser(username);
-                await initializeDatabase();
-            } catch (error) {
-                console.warn('PocketBase authentication failed, continuing in local mode:', error);
-            }
+        // Authenticate with PocketBase
+        try {
+            await authenticateUser(username);
+            showAppScreen();
+            await loadGames();
+            setupRealtimeSubscriptions();
+        } catch (error) {
+            console.error('Login failed:', error);
+            alert('Error: Cannot connect to the backend database. Please ensure PocketBase is running at ' + PB_URL);
+            currentUser = null;
+            localStorage.removeItem('jackbox_user');
         }
-        
-        showAppScreen();
-        await loadGames();
-        setupRealtimeSubscriptions();
     }
 }
 
@@ -195,22 +208,22 @@ function switchTab(tabId) {
 // Load Games
 async function loadGames() {
     try {
-        if (pb && pb.collection) {
-            // Try to load from PocketBase
-            const records = await pb.collection('games').getFullList({
-                sort: 'name',
-            });
-            // Map PocketBase records to expected format
-            games = records.map(record => ({
-                id: record.id,
-                name: record.name,
-                image: record.img || '',
-                pack: record.pack || '',
-            }));
-        } else {
-            // Use demo data
-            games = getDemoGames();
+        if (!pb || !pb.collection) {
+            throw new Error('Backend database is not available. Please ensure PocketBase is running.');
         }
+        
+        // Try to load from PocketBase
+        const records = await pb.collection('games').getFullList({
+            sort: 'name',
+        });
+        
+        // Map PocketBase records to expected format
+        games = records.map(record => ({
+            id: record.id,
+            name: record.name,
+            image: record.img || '',
+            pack: record.pack || '',
+        }));
         
         // Initialize scores from localStorage or default
         const savedScores = localStorage.getItem(`scores_${currentUser}`);
@@ -225,29 +238,13 @@ async function loadGames() {
         
         renderGames();
     } catch (error) {
-        console.warn('Failed to load from PocketBase, using demo data', error);
-        games = getDemoGames();
-        scores = {};
-        games.forEach(game => {
-            scores[game.id] = 0;
-        });
-        renderGames();
+        console.error('Failed to load games from backend:', error);
+        alert('Error: Cannot connect to the backend database. Please ensure PocketBase is running at ' + PB_URL);
+        handleLogout();
     }
 }
 
-// Get Demo Games
-function getDemoGames() {
-    return [
-        { id: 'game1', name: 'Quiplash', image: '' },
-        { id: 'game2', name: 'Fibbage', image: '' },
-        { id: 'game3', name: 'Drawful', image: '' },
-        { id: 'game4', name: 'Trivia Murder Party', image: '' },
-        { id: 'game5', name: 'Tee K.O.', image: '' },
-        { id: 'game6', name: 'Monster Seeking Monster', image: '' },
-        { id: 'game7', name: 'Bracketeering', image: '' },
-        { id: 'game8', name: 'Civic Doodle', image: '' },
-    ];
-}
+
 
 // Render Games
 function renderGames() {
@@ -463,80 +460,27 @@ async function renderLeaderboard() {
 // Helper to get raw vote data
 async function getAllVotes() {
     try {
-        if (pb && pb.collection) {
-            // Ensure you expand 'game' and 'user' to get the names
-            const records = await pb.collection('scores').getFullList({
-                expand: 'game,user',
-                sort: 'created', // Consistent ordering
-            });
-            return records.map(r => ({
-                user: r.expand?.user?.email?.replace('@example.com', '') || 'Unknown',
-                gameName: r.expand?.game?.name || 'Unknown',
-                score: r.score
-            }));
-        } else {
-            // Adapt your local storage logic here to return the same structure
-            return getLocalVotes();
+        if (!pb || !pb.collection) {
+            throw new Error('Backend database is not available');
         }
+        
+        // Ensure you expand 'game' and 'user' to get the names
+        const records = await pb.collection('scores').getFullList({
+            expand: 'game,user',
+            sort: 'created', // Consistent ordering
+        });
+        return records.map(r => ({
+            user: r.expand?.user?.email?.replace('@example.com', '') || 'Unknown',
+            gameName: r.expand?.game?.name || 'Unknown',
+            score: r.score
+        }));
     } catch (e) {
         console.warn('Failed to fetch votes in getAllVotes:', e);
         return [];
     }
 }
 
-// Get Local Votes (for localStorage fallback)
-function getLocalVotes() {
-    const allVotes = [];
-    
-    // Get all user scores from localStorage
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('scores_')) {
-            const username = key.replace('scores_', '');
-            const userScores = JSON.parse(localStorage.getItem(key));
-            
-            Object.entries(userScores).forEach(([gameId, score]) => {
-                const game = games.find(g => g.id === gameId);
-                if (game && score > 0) {
-                    allVotes.push({
-                        user: username,
-                        gameName: game.name,
-                        score: score,
-                    });
-                }
-            });
-        }
-    }
-    
-    return allVotes;
-}
 
-// Get Local Scores (deprecated - kept for backward compatibility with tests)
-function getLocalScores() {
-    const allScores = [];
-    
-    // Get all user scores from localStorage
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('scores_')) {
-            const username = key.replace('scores_', '');
-            const userScores = JSON.parse(localStorage.getItem(key));
-            
-            Object.entries(userScores).forEach(([gameId, score]) => {
-                const game = games.find(g => g.id === gameId);
-                if (game && score > 0) {
-                    allScores.push({
-                        user: username,
-                        game: game.name,
-                        totalScore: score,
-                    });
-                }
-            });
-        }
-    }
-    
-    return allScores;
-}
 
 // Export functions for testing
 if (typeof module !== 'undefined' && module.exports) {
@@ -544,13 +488,11 @@ if (typeof module !== 'undefined' && module.exports) {
         handleLogin,
         handleLogout,
         updateScore,
-        getDemoGames,
-        getLocalScores,
-        getLocalVotes,
         getAllVotes,
         switchTab,
         authenticateUser,
-        initializeDatabase,
+        toggleTheme,
+        initTheme,
     };
 }
 
