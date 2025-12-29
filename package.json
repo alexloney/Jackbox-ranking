@@ -1,0 +1,23 @@
+{
+  "name": "jackbox-ranking",
+  "version": "1.0.0",
+  "description": "Simple self hosted ranking for Jackbox games",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "serve": "npx http-server -p 8080 -o"
+  },
+  "keywords": [
+    "jackbox",
+    "ranking",
+    "pocketbase"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@jest/globals": "^29.7.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}
