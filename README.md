@@ -1,6 +1,79 @@
 # Jackbox-ranking
 Simple self hosted ranking for Jackbox games
 
+I created this with the help of Copilot, this is partially a test to see how Copilot works with a project and what's required
+to be done to create and use something with it.
+
+The intention of this project is to have a simple self-hosted webpage where my friends and I could rank Jackbox games. There
+is **absolutely no security** in this implementation. The database credentials are "username@example.com:username@example.com".
+
+To deploy this website locally, you simply have to run:
+```
+docker-compose up
+```
+
+If you're developing/iterating locally, you may want to use the following to recreate the containers so that changes
+take effect:
+```
+docker-compose up --force-recreate
+```
+
+When you're ready to self-host it on a website somewhere, you'll want to update the `docker-compose.yml` file to be something
+like this:
+```
+# docker-compose up --force-recreate
+
+version: "3.8"
+
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: jackbox_pb
+    restart: unless-stopped
+    command:
+      - --encryptionEnv=PB_ENCRYPTION_KEY
+    environment:
+      # WARNING: Change this to a secure random key for production use!
+      # Generate a secure key with: openssl rand -hex 16
+      PB_ENCRYPTION_KEY: "xxx"
+      PB_ADMIN_EMAIL: "admin@example.com"
+      PB_ADMIN_PASSWORD: "xxx"
+    volumes:
+      - /volume1/docker/pocketbase/data:/pb/pb_data
+    ports:
+      - "8090"
+
+  webapp:
+    image: node:18-alpine
+    container_name: jackbox_web
+    working_dir: /app
+    # Mount your current directory directly into the container
+    volumes:
+      - ./:/app
+    # Install http-server globally and run it
+    command: sh -c "npm install -g http-server && http-server -p 3000 --cors"
+    ports:
+      - "3000"
+    environment:
+      - COUNTER=1
+    depends_on:
+      - pocketbase
+
+networks:
+    default:
+        name: MyNetwork
+        external: true
+```
+
+This will allow you to persist the PocketBase database across executions by specifying a persistent directory.
+Once up and running, you can set up SWAG (or other http server setup) configuration to point to the "jackbox_web"
+and "jackbox_pb" containers. Finally, you'll want to make sure you update both "index.html" and "seed.html" to
+set the domain the correct domain instead of "127.0.0.1".
+
+And that should be all there is to it to get it deployed. You can access PocketBase from the web to manually manage
+it if needed, which is useful for initial setup to set the containers up. You'll access and use "seed.html" once
+to see the database with information, then it should be usable.
+
 ## Features
 
 - 🎮 Simple name-based login with automatic PocketBase authentication
