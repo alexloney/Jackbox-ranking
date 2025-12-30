@@ -357,7 +357,10 @@ function createGameCard(game) {
     stars.forEach(star => {
         star.addEventListener('click', () => {
             const rating = parseInt(star.dataset.rating);
-            updateScore(game.id, rating);
+            const currentScore = scores[game.id] || 0;
+            // If clicking the same star, reset to 0
+            const newScore = currentScore === rating ? 0 : rating;
+            updateScore(game.id, newScore);
         });
         
         // Add hover effect
@@ -387,7 +390,7 @@ async function updateScore(gameId, newScore) {
     // newScore can be 0-5, where 0 means unscored
     const currentScore = scores[gameId] || 0;
     
-    // Validate score range - silently return for invalid scores
+    // Validate score range - silently return for invalid scores or no change
     if (newScore < 0 || newScore > 5 || newScore === currentScore) {
         return;
     }
