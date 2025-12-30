@@ -38,7 +38,7 @@ async function authenticateUser(username) {
     }
     
     const email = `${username.toLowerCase()}@example.com`;
-    const password = username.toLowerCase();
+    const password = email;
     
     try {
         // Try to authenticate existing user
