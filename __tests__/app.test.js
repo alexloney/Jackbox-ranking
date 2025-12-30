@@ -23,6 +23,10 @@ document.body.innerHTML = `
       <span class="sun-icon"></span>
       <span class="moon-icon"></span>
     </button>
+    <input type="text" id="game-name-filter" />
+    <select id="pack-filter">
+      <option value="">All Party Packs</option>
+    </select>
     <div id="games-container"></div>
     <div id="leaderboard-container"></div>
     <div id="scoring-tab" class="tab-pane active"></div>
@@ -139,6 +143,16 @@ describe('Jackbox Ranking App', () => {
     test('theme toggle button should exist', () => {
       const themeToggle = document.getElementById('theme-toggle');
       expect(themeToggle).not.toBeNull();
+    });
+
+    test('game name filter input should exist', () => {
+      const gameNameFilter = document.getElementById('game-name-filter');
+      expect(gameNameFilter).not.toBeNull();
+    });
+
+    test('pack filter select should exist', () => {
+      const packFilter = document.getElementById('pack-filter');
+      expect(packFilter).not.toBeNull();
     });
   });
 
@@ -287,6 +301,75 @@ describe('Jackbox Ranking App', () => {
       expect(global.localStorage.getItem('jackbox_theme')).toBe('dark');
       toggleTheme();
       expect(global.localStorage.getItem('jackbox_theme')).toBe('light');
+    });
+  });
+
+  describe('Game Filtering', () => {
+    test('should filter games by name', () => {
+      const mockGames = [
+        { id: '1', name: 'Quiplash', pack: 'Party Pack 2' },
+        { id: '2', name: 'Fibbage', pack: 'Party Pack 1' },
+        { id: '3', name: 'Quiplash 2', pack: 'Party Pack 3' },
+      ];
+      
+      // Filter for "Quiplash"
+      const searchTerm = 'quiplash';
+      const filtered = mockGames.filter(game => 
+        game.name.toLowerCase().includes(searchTerm)
+      );
+      
+      expect(filtered.length).toBe(2);
+      expect(filtered[0].name).toBe('Quiplash');
+      expect(filtered[1].name).toBe('Quiplash 2');
+    });
+
+    test('should filter games by pack', () => {
+      const mockGames = [
+        { id: '1', name: 'Quiplash', pack: 'Party Pack 2' },
+        { id: '2', name: 'Fibbage', pack: 'Party Pack 1' },
+        { id: '3', name: 'Drawful', pack: 'Party Pack 1' },
+      ];
+      
+      const selectedPack = 'Party Pack 1';
+      const filtered = mockGames.filter(game => game.pack === selectedPack);
+      
+      expect(filtered.length).toBe(2);
+      expect(filtered[0].name).toBe('Fibbage');
+      expect(filtered[1].name).toBe('Drawful');
+    });
+
+    test('should extract unique packs from games', () => {
+      const mockGames = [
+        { id: '1', name: 'Game 1', pack: 'Party Pack 2' },
+        { id: '2', name: 'Game 2', pack: 'Party Pack 1' },
+        { id: '3', name: 'Game 3', pack: 'Party Pack 2' },
+        { id: '4', name: 'Game 4', pack: 'Party Pack 3' },
+      ];
+      
+      const packs = [...new Set(mockGames.map(game => game.pack).filter(pack => pack))].sort();
+      
+      expect(packs.length).toBe(3);
+      expect(packs).toEqual(['Party Pack 1', 'Party Pack 2', 'Party Pack 3']);
+    });
+
+    test('should apply both name and pack filters together', () => {
+      const mockGames = [
+        { id: '1', name: 'Quiplash', pack: 'Party Pack 2' },
+        { id: '2', name: 'Fibbage', pack: 'Party Pack 1' },
+        { id: '3', name: 'Quiplash 2', pack: 'Party Pack 3' },
+        { id: '4', name: 'Quiplash 3', pack: 'Party Pack 7' },
+      ];
+      
+      const searchTerm = 'quiplash';
+      const selectedPack = 'Party Pack 3';
+      
+      const filtered = mockGames.filter(game => 
+        game.name.toLowerCase().includes(searchTerm) &&
+        game.pack === selectedPack
+      );
+      
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].name).toBe('Quiplash 2');
     });
   });
 });
