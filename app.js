@@ -387,10 +387,10 @@ async function updateScore(gameId, newScore) {
     // newScore can be 0-5, where 0 means unscored
     const currentScore = scores[gameId] || 0;
     
-    // Validate score range
-    if (newScore < 0 || newScore > 5) return;
-    
-    if (newScore === currentScore) return;
+    // Validate score range - silently return for invalid scores
+    if (newScore < 0 || newScore > 5 || newScore === currentScore) {
+        return;
+    }
     
     scores[gameId] = newScore;
     
@@ -601,7 +601,6 @@ if (typeof module !== 'undefined' && module.exports) {
         authenticateUser,
         toggleTheme,
         initTheme,
-        updateStarDisplay,
     };
 }
 

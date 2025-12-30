@@ -320,13 +320,6 @@ body {
     font-style: italic;
 }
 
-.score-controls {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-
 .star-rating {
     display: flex;
     justify-content: center;
@@ -359,41 +352,6 @@ body.dark-mode .star {
 body.dark-mode .star.filled,
 body.dark-mode .star.hover {
     color: #fbbf24;
-}
-
-.score-btn {
-    width: 48px;
-    height: 48px;
-    border: 2px solid var(--primary-color);
-    background: white;
-    color: var(--primary-color);
-    border-radius: 0.5rem;
-    font-size: 1.5rem;
-    font-weight: bold;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-    user-select: none;
-}
-
-.score-btn:hover:not(:disabled) {
-    background: var(--primary-color);
-    color: white;
-}
-
-.score-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-}
-
-.score-display {
-    flex: 1;
-    text-align: center;
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--primary-color);
 }
 
 /* Leaderboard */
