@@ -43,44 +43,44 @@ const {
 
 describe('Jackbox Ranking App', () => {
   describe('Score Management', () => {
-    test('scores should be between 0 and 10', () => {
+    test('scores should be between 0 and 5', () => {
       const minScore = 0;
-      const maxScore = 10;
+      const maxScore = 5;
       
       // Test boundary conditions
-      expect(Math.max(0, Math.min(10, -1))).toBe(minScore);
-      expect(Math.max(0, Math.min(10, 0))).toBe(minScore);
-      expect(Math.max(0, Math.min(10, 5))).toBe(5);
-      expect(Math.max(0, Math.min(10, 10))).toBe(maxScore);
-      expect(Math.max(0, Math.min(10, 11))).toBe(maxScore);
+      expect(Math.max(0, Math.min(5, -1))).toBe(minScore);
+      expect(Math.max(0, Math.min(5, 0))).toBe(minScore);
+      expect(Math.max(0, Math.min(5, 3))).toBe(3);
+      expect(Math.max(0, Math.min(5, 5))).toBe(maxScore);
+      expect(Math.max(0, Math.min(5, 6))).toBe(maxScore);
     });
 
     test('score increments should work correctly', () => {
-      let score = 5;
+      let score = 3;
       const delta = 1;
-      const newScore = Math.max(0, Math.min(10, score + delta));
-      expect(newScore).toBe(6);
+      const newScore = Math.max(0, Math.min(5, score + delta));
+      expect(newScore).toBe(4);
     });
 
     test('score decrements should work correctly', () => {
-      let score = 5;
+      let score = 3;
       const delta = -1;
-      const newScore = Math.max(0, Math.min(10, score + delta));
-      expect(newScore).toBe(4);
+      const newScore = Math.max(0, Math.min(5, score + delta));
+      expect(newScore).toBe(2);
     });
 
     test('score should not go below 0', () => {
       let score = 0;
       const delta = -1;
-      const newScore = Math.max(0, Math.min(10, score + delta));
+      const newScore = Math.max(0, Math.min(5, score + delta));
       expect(newScore).toBe(0);
     });
 
-    test('score should not go above 10', () => {
-      let score = 10;
+    test('score should not go above 5', () => {
+      let score = 5;
       const delta = 1;
-      const newScore = Math.max(0, Math.min(10, score + delta));
-      expect(newScore).toBe(10);
+      const newScore = Math.max(0, Math.min(5, score + delta));
+      expect(newScore).toBe(5);
     });
   });
 
@@ -207,20 +207,25 @@ describe('Jackbox Ranking App', () => {
     test('vote aggregation should calculate average correctly', () => {
       // Simulate multiple votes for the same game
       const mockVotes = [
-        { user: 'alice', gameName: 'Quiplash', score: 8 },
-        { user: 'bob', gameName: 'Quiplash', score: 6 },
-        { user: 'charlie', gameName: 'Quiplash', score: 10 },
-        { user: 'alice', gameName: 'Fibbage', score: 5 },
+        { user: 'alice', gameName: 'Quiplash', score: 4 },
+        { user: 'bob', gameName: 'Quiplash', score: 3 },
+        { user: 'charlie', gameName: 'Quiplash', score: 5 },
+        { user: 'alice', gameName: 'Fibbage', score: 2 },
       ];
 
       // Aggregate scores by Game
       const gameStats = {};
       mockVotes.forEach(vote => {
         const gameName = vote.gameName;
+        const score = vote.score;
+        
+        // Skip scores of 0 (unscored)
+        if (score === 0) return;
+        
         if (!gameStats[gameName]) {
           gameStats[gameName] = { total: 0, count: 0 };
         }
-        gameStats[gameName].total += vote.score;
+        gameStats[gameName].total += score;
         gameStats[gameName].count += 1;
       });
 
@@ -233,19 +238,58 @@ describe('Jackbox Ranking App', () => {
       // Verify Quiplash average
       const quiplash = rankedGames.find(g => g.name === 'Quiplash');
       expect(quiplash).toBeDefined();
-      expect(quiplash.average).toBe(8.0); // (8 + 6 + 10) / 3 = 8.0
+      expect(quiplash.average).toBe(4.0); // (4 + 3 + 5) / 3 = 4.0
 
       // Verify Fibbage average
       const fibbage = rankedGames.find(g => g.name === 'Fibbage');
       expect(fibbage).toBeDefined();
-      expect(fibbage.average).toBe(5.0);
+      expect(fibbage.average).toBe(2.0);
+    });
+    
+    test('vote aggregation should exclude zero scores', () => {
+      // Simulate votes including some zeros
+      const mockVotes = [
+        { user: 'alice', gameName: 'Quiplash', score: 4 },
+        { user: 'bob', gameName: 'Quiplash', score: 0 },  // Should be excluded
+        { user: 'charlie', gameName: 'Quiplash', score: 5 },
+        { user: 'dave', gameName: 'Quiplash', score: 0 },  // Should be excluded
+      ];
+
+      // Aggregate scores by Game
+      const gameStats = {};
+      mockVotes.forEach(vote => {
+        const gameName = vote.gameName;
+        const score = vote.score;
+        
+        // Skip scores of 0 (unscored)
+        if (score === 0) return;
+        
+        if (!gameStats[gameName]) {
+          gameStats[gameName] = { total: 0, count: 0 };
+        }
+        gameStats[gameName].total += score;
+        gameStats[gameName].count += 1;
+      });
+
+      // Calculate averages
+      const rankedGames = Object.entries(gameStats).map(([name, stats]) => ({
+        name,
+        average: stats.total / stats.count,
+        count: stats.count,
+      }));
+
+      // Verify Quiplash average excludes zeros
+      const quiplash = rankedGames.find(g => g.name === 'Quiplash');
+      expect(quiplash).toBeDefined();
+      expect(quiplash.count).toBe(2); // Only 2 non-zero votes
+      expect(quiplash.average).toBe(4.5); // (4 + 5) / 2 = 4.5
     });
 
     test('games should be sorted by average descending', () => {
       const rankedGames = [
-        { name: 'Game A', average: 7.5, count: 2 },
-        { name: 'Game B', average: 9.0, count: 3 },
-        { name: 'Game C', average: 5.5, count: 1 },
+        { name: 'Game A', average: 3.5, count: 2 },
+        { name: 'Game B', average: 4.5, count: 3 },
+        { name: 'Game C', average: 2.5, count: 1 },
       ];
 
       rankedGames.sort((a, b) => b.average - a.average);

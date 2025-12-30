@@ -78,7 +78,7 @@ to see the database with information, then it should be usable.
 
 - 🎮 Simple name-based login with automatic PocketBase authentication
 - 📱 Mobile-friendly responsive design
-- 🎯 Score tracking for Jackbox games (0-10 scale)
+- 🎯 Score tracking for Jackbox games (1-5 star scale)
 - 🏆 Real-time leaderboard with vote aggregation
 - 💾 PocketBase backend for data persistence
 - 🔐 Secure authentication with user-specific score permissions
@@ -128,7 +128,7 @@ For production deployment, change the `backendUrl` to your PocketBase server URL
    **Collection: `scores`**
    - `user` (relation to users collection, required)
    - `game` (relation to games collection, required)
-   - `score` (number, required, min: 0, max: 10)
+   - `score` (number, required, min: 0, max: 5)
    - List Rule: `""` (public read for leaderboard)
    - View Rule: `""` (public read)
    - Create Rule: `@request.auth.id != '' && @request.auth.id = user`
@@ -200,8 +200,8 @@ npm run test:watch
 ## Usage
 
 1. **Login:** Enter your name and click Login (requires PocketBase to be running)
-2. **Score Games:** Use the + and - buttons to adjust scores (0-10 range)
-3. **View Leaderboard:** Tap the Leaderboard tab to see average scores from all users
+2. **Score Games:** Click on stars to rate games (1-5 stars, or leave unrated)
+3. **View Leaderboard:** Tap the Leaderboard tab to see average scores from all users (unrated games are excluded from averages)
 4. **Toggle Dark Mode:** Click the moon/sun icon in the header to switch themes
 5. **Seed Database:** Use `seed.html` to populate the database with initial games
 

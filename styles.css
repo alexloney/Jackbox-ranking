@@ -327,6 +327,40 @@ body {
     gap: 0.75rem;
 }
 
+.star-rating {
+    display: flex;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+}
+
+.star {
+    font-size: 2rem;
+    color: var(--border-color);
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.star.filled,
+.star.hover {
+    color: #fbbf24;
+    text-shadow: 0 2px 4px rgba(251, 191, 36, 0.3);
+}
+
+.star:hover {
+    transform: scale(1.1);
+}
+
+body.dark-mode .star {
+    color: var(--border-color);
+}
+
+body.dark-mode .star.filled,
+body.dark-mode .star.hover {
+    color: #fbbf24;
+}
+
 .score-btn {
     width: 48px;
     height: 48px;
