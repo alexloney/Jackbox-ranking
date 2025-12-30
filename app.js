@@ -225,15 +225,18 @@ async function loadUserScoresFromDB() {
     try {
         const userId = pb.authStore.model.id;
         
+        // Escape filter values to prevent injection
+        const escapedUserId = userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        
         // Fetch all scores for the current user
         const userScores = await pb.collection('scores').getFullList({
-            filter: `user = "${userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
+            filter: `user = "${escapedUserId}"`,
         });
         
         // Map scores by game ID
         const scoresMap = {};
         userScores.forEach(record => {
-            scoresMap[record.game] = record.score || 0;
+            scoresMap[record.game] = record.score ?? 0;
         });
         
         return scoresMap;
