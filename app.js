@@ -1,5 +1,6 @@
 // PocketBase Configuration
-const PB_URL = 'http://127.0.0.1:8090';
+// To change the backend URL for deployment, modify the value below
+const PB_URL = window.JACKBOX_CONFIG?.backendUrl || 'http://127.0.0.1:8090';
 let pb;
 
 // Initialize PocketBase
@@ -30,6 +31,8 @@ const themeToggle = document.getElementById('theme-toggle');
 const gamesContainer = document.getElementById('games-container');
 const leaderboardContainer = document.getElementById('leaderboard-container');
 const navBtns = document.querySelectorAll('.nav-btn');
+const gameNameFilter = document.getElementById('game-name-filter');
+const packFilter = document.getElementById('pack-filter');
 
 // Authenticate User with PocketBase
 async function authenticateUser(username) {
@@ -97,6 +100,14 @@ async function initApp() {
     navBtns.forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
+    
+    // Setup filter listeners
+    if (gameNameFilter) {
+        gameNameFilter.addEventListener('input', applyFilters);
+    }
+    if (packFilter) {
+        packFilter.addEventListener('change', applyFilters);
+    }
 }
 
 // Theme Management
@@ -236,6 +247,7 @@ async function loadGames() {
             });
         }
         
+        populatePackFilter();
         renderGames();
     } catch (error) {
         console.error('Failed to load games from backend:', error);
@@ -255,10 +267,62 @@ function renderGames() {
         return;
     }
     
-    games.forEach(game => {
+    // Apply filters
+    const filteredGames = getFilteredGames();
+    
+    if (filteredGames.length === 0) {
+        gamesContainer.innerHTML = '<div class="empty-state">No games match the current filters</div>';
+        return;
+    }
+    
+    filteredGames.forEach(game => {
         const card = createGameCard(game);
         gamesContainer.appendChild(card);
     });
+}
+
+// Populate Pack Filter
+function populatePackFilter() {
+    if (!packFilter) return;
+    
+    // Get unique packs
+    const packs = [...new Set(games.map(game => game.pack).filter(pack => pack))].sort();
+    
+    // Clear existing options except "All Party Packs"
+    packFilter.innerHTML = '<option value="">All Party Packs</option>';
+    
+    // Add pack options
+    packs.forEach(pack => {
+        const option = document.createElement('option');
+        option.value = pack;
+        option.textContent = pack;
+        packFilter.appendChild(option);
+    });
+}
+
+// Get Filtered Games
+function getFilteredGames() {
+    let filtered = [...games];
+    
+    // Filter by name
+    if (gameNameFilter && gameNameFilter.value.trim()) {
+        const searchTerm = gameNameFilter.value.trim().toLowerCase();
+        filtered = filtered.filter(game => 
+            game.name.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Filter by pack
+    if (packFilter && packFilter.value) {
+        filtered = filtered.filter(game => game.pack === packFilter.value);
+    }
+    
+    return filtered;
+}
+
+// Apply Filters
+function applyFilters() {
+    renderGames();
 }
 
 // Create Game Card
@@ -275,6 +339,7 @@ function createGameCard(game) {
         </div>
         <div class="game-info">
             <div class="game-name">${game.name}</div>
+            ${game.pack ? `<div class="game-pack">${game.pack}</div>` : ''}
             <div class="score-controls">
                 <button class="score-btn" data-action="decrease" ${score <= 0 ? 'disabled' : ''}>−</button>
                 <div class="score-display">${score}</div>
