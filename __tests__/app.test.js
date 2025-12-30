@@ -39,6 +39,7 @@ const {
   getAllVotes,
   toggleTheme,
   initTheme,
+  loadUserScoresFromDB,
 } = require('../app.js');
 
 describe('Jackbox Ranking App', () => {
@@ -305,6 +306,27 @@ describe('Jackbox Ranking App', () => {
       
       const votes = await getAllVotes();
       expect(Array.isArray(votes)).toBe(true);
+    });
+
+    test('loadUserScoresFromDB should return empty object when PocketBase is not available', async () => {
+      // Ensure pb is not defined
+      global.pb = undefined;
+      
+      const scores = await loadUserScoresFromDB();
+      expect(typeof scores).toBe('object');
+      expect(Object.keys(scores).length).toBe(0);
+    });
+
+    test('loadUserScoresFromDB should return empty object when user is not authenticated', async () => {
+      // Mock pb without authenticated user
+      global.pb = {
+        collection: jest.fn(),
+        authStore: { model: null }
+      };
+      
+      const scores = await loadUserScoresFromDB();
+      expect(typeof scores).toBe('object');
+      expect(Object.keys(scores).length).toBe(0);
     });
   });
 
