@@ -333,6 +333,14 @@ function createGameCard(game) {
     
     const score = scores[game.id] || 0;
     
+    // Create stars HTML
+    let starsHTML = '<div class="star-rating">';
+    for (let i = 1; i <= 5; i++) {
+        const filled = i <= score ? 'filled' : '';
+        starsHTML += `<span class="star ${filled}" data-rating="${i}">★</span>`;
+    }
+    starsHTML += '</div>';
+    
     card.innerHTML = `
         <div class="game-image">
             ${game.image ? `<img src="${game.image}" alt="${game.name}">` : game.name.charAt(0)}
@@ -340,30 +348,52 @@ function createGameCard(game) {
         <div class="game-info">
             <div class="game-name">${game.name}</div>
             ${game.pack ? `<div class="game-pack">${game.pack}</div>` : ''}
-            <div class="score-controls">
-                <button class="score-btn" data-action="decrease" ${score <= 0 ? 'disabled' : ''}>−</button>
-                <div class="score-display">${score}</div>
-                <button class="score-btn" data-action="increase" ${score >= 10 ? 'disabled' : ''}>+</button>
-            </div>
+            ${starsHTML}
         </div>
     `;
     
-    // Add event listeners for score buttons
-    const decreaseBtn = card.querySelector('[data-action="decrease"]');
-    const increaseBtn = card.querySelector('[data-action="increase"]');
+    // Add event listeners for stars
+    const stars = card.querySelectorAll('.star');
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            const rating = parseInt(star.dataset.rating);
+            const currentScore = scores[game.id] || 0;
+            // If clicking the same star, reset to 0
+            const newScore = currentScore === rating ? 0 : rating;
+            updateScore(game.id, newScore);
+        });
+        
+        // Add hover effect
+        star.addEventListener('mouseenter', () => {
+            const rating = parseInt(star.dataset.rating);
+            stars.forEach((s, index) => {
+                if (index < rating) {
+                    s.classList.add('hover');
+                } else {
+                    s.classList.remove('hover');
+                }
+            });
+        });
+    });
     
-    decreaseBtn.addEventListener('click', () => updateScore(game.id, -1));
-    increaseBtn.addEventListener('click', () => updateScore(game.id, 1));
+    // Remove hover effect when leaving the star rating area
+    const starRating = card.querySelector('.star-rating');
+    starRating.addEventListener('mouseleave', () => {
+        stars.forEach(s => s.classList.remove('hover'));
+    });
     
     return card;
 }
 
 // Update Score
-async function updateScore(gameId, delta) {
+async function updateScore(gameId, newScore) {
+    // newScore can be 0-5, where 0 means unscored
     const currentScore = scores[gameId] || 0;
-    const newScore = Math.max(0, Math.min(10, currentScore + delta));
     
-    if (newScore === currentScore) return;
+    // Validate score range - silently return for invalid scores or no change
+    if (newScore < 0 || newScore > 5 || newScore === currentScore) {
+        return;
+    }
     
     scores[gameId] = newScore;
     
@@ -373,13 +403,7 @@ async function updateScore(gameId, delta) {
     // Update UI
     const card = document.querySelector(`[data-game-id="${gameId}"]`);
     if (card) {
-        const scoreDisplay = card.querySelector('.score-display');
-        const decreaseBtn = card.querySelector('[data-action="decrease"]');
-        const increaseBtn = card.querySelector('[data-action="increase"]');
-        
-        scoreDisplay.textContent = newScore;
-        decreaseBtn.disabled = newScore <= 0;
-        increaseBtn.disabled = newScore >= 10;
+        updateStarDisplay(card, newScore);
     }
     
     // Sync to PocketBase if available
@@ -390,6 +414,18 @@ async function updateScore(gameId, delta) {
     } catch (error) {
         console.warn('Failed to sync score to PocketBase', error);
     }
+}
+
+// Update Star Display
+function updateStarDisplay(card, score) {
+    const stars = card.querySelectorAll('.star');
+    stars.forEach((star, index) => {
+        if (index < score) {
+            star.classList.add('filled');
+        } else {
+            star.classList.remove('filled');
+        }
+    });
 }
 
 // Sync Score to PocketBase
@@ -475,13 +511,18 @@ async function renderLeaderboard() {
 
     allVotes.forEach(vote => {
         const gameName = vote.gameName;
+        const score = vote.score;
+        
+        // Skip scores of 0 (unscored)
+        if (score === 0) return;
+        
         if (!gameStats[gameName]) {
             gameStats[gameName] = { total: 0, count: 0, voters: [] };
         }
-        gameStats[gameName].total += vote.score;
+        gameStats[gameName].total += score;
         gameStats[gameName].count += 1;
         // Optional: track who voted for the "details" view
-        gameStats[gameName].voters.push(`${vote.user} (${vote.score})`);
+        gameStats[gameName].voters.push(`${vote.user} (${score})`);
     });
 
     // 3. Convert to array and calculate average
@@ -497,6 +538,11 @@ async function renderLeaderboard() {
 
     // 5. Render
     leaderboardContainer.innerHTML = '<div class="leaderboard-header">Game Rankings</div>';
+    
+    if (rankedGames.length === 0) {
+        leaderboardContainer.innerHTML += '<div class="empty-state">No scored games yet. Start rating games!</div>';
+        return;
+    }
     
     rankedGames.forEach((item, index) => {
         const rank = index + 1;
