@@ -216,6 +216,36 @@ function switchTab(tabId) {
     }
 }
 
+// Load User Scores from PocketBase
+async function loadUserScoresFromDB() {
+    if (!pb || !pb.collection || !pb.authStore.model) {
+        return {};
+    }
+    
+    try {
+        const userId = pb.authStore.model.id;
+        
+        // Escape filter values to prevent injection
+        const escapedUserId = userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        
+        // Fetch all scores for the current user
+        const userScores = await pb.collection('scores').getFullList({
+            filter: `user = "${escapedUserId}"`,
+        });
+        
+        // Map scores by game ID
+        const scoresMap = {};
+        userScores.forEach(record => {
+            scoresMap[record.game] = record.score ?? 0;
+        });
+        
+        return scoresMap;
+    } catch (error) {
+        console.warn('Failed to load user scores from database:', error);
+        return {};
+    }
+}
+
 // Load Games
 async function loadGames() {
     try {
@@ -236,16 +266,17 @@ async function loadGames() {
             pack: record.pack || '',
         }));
         
-        // Initialize scores from localStorage or default
-        const savedScores = localStorage.getItem(`scores_${currentUser}`);
-        if (savedScores) {
-            scores = JSON.parse(savedScores);
-        } else {
-            scores = {};
-            games.forEach(game => {
-                scores[game.id] = 0;
-            });
-        }
+        // Load scores from database first
+        const dbScores = await loadUserScoresFromDB();
+        
+        // Initialize scores - prioritize database scores over localStorage
+        scores = {};
+        games.forEach(game => {
+            scores[game.id] = dbScores[game.id] !== undefined ? dbScores[game.id] : 0;
+        });
+        
+        // Update localStorage with current scores from database
+        localStorage.setItem(`scores_${currentUser}`, JSON.stringify(scores));
         
         populatePackFilter();
         renderGames();
@@ -604,6 +635,7 @@ if (typeof module !== 'undefined' && module.exports) {
         authenticateUser,
         toggleTheme,
         initTheme,
+        loadUserScoresFromDB,
     };
 }
 
