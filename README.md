@@ -15,6 +15,20 @@ Simple self hosted ranking for Jackbox games
 
 ## Quick Start
 
+### Configuration
+
+The backend URL can be configured by editing the `JACKBOX_CONFIG` object in `index.html` and `seed.html`:
+
+```html
+<script>
+    window.JACKBOX_CONFIG = {
+        backendUrl: 'http://127.0.0.1:8090'  // Change this for deployment
+    };
+</script>
+```
+
+For production deployment, change the `backendUrl` to your PocketBase server URL (e.g., `'https://your-domain.com'`).
+
 ### Prerequisites
 
 **PocketBase Backend Required:** This application requires a running PocketBase instance to function. It does not work in offline mode.

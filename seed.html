@@ -100,10 +100,14 @@
             <strong>Prerequisites:</strong>
         </p>
         <ul style="margin-bottom: 1.5rem; color: var(--text-secondary); line-height: 1.8;">
-            <li>PocketBase must be running at <code>http://127.0.0.1:8090</code></li>
+            <li>PocketBase must be running (configured at <code id="pb-url-display"></code>)</li>
             <li>The <code>games</code> collection must exist</li>
             <li>You must have admin access or proper permissions</li>
         </ul>
+        <script>
+            // Display the configured backend URL
+            document.getElementById('pb-url-display').textContent = window.JACKBOX_CONFIG?.backendUrl || 'http://127.0.0.1:8090';
+        </script>
         
         <button id="seed-btn" class="seed-btn">Seed Database</button>
         <div id="status-message" class="status-message"></div>
@@ -111,9 +115,15 @@
         <a href="index.html" class="back-link">← Back to Jackbox Ranking</a>
     </div>
 
+    <!-- Configuration: Change backendUrl for deployment -->
+    <script>
+        window.JACKBOX_CONFIG = {
+            backendUrl: 'http://127.0.0.1:8090'
+        };
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.19.0/dist/pocketbase.umd.js"></script>
     <script>
-        const PB_URL = 'http://127.0.0.1:8090';
+        const PB_URL = window.JACKBOX_CONFIG?.backendUrl || 'http://127.0.0.1:8090';
         let pb;
         
         // Initialize PocketBase

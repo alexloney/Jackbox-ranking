@@ -47,6 +47,18 @@
         <div class="tab-content">
             <!-- Scoring Tab -->
             <div id="scoring-tab" class="tab-pane active">
+                <!-- Filter Controls -->
+                <div class="filter-controls">
+                    <input 
+                        type="text" 
+                        id="game-name-filter" 
+                        class="filter-input" 
+                        placeholder="Filter by game name..."
+                    />
+                    <select id="pack-filter" class="filter-select">
+                        <option value="">All Party Packs</option>
+                    </select>
+                </div>
                 <div id="games-container" class="games-container">
                     <!-- Game cards will be inserted here -->
                 </div>
@@ -79,6 +91,12 @@
     </div>
 
     <!-- Scripts -->
+    <!-- Configuration: Change backendUrl for deployment -->
+    <script>
+        window.JACKBOX_CONFIG = {
+            backendUrl: 'http://127.0.0.1:8090'
+        };
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.19.0/dist/pocketbase.umd.js"></script>
     <script src="app.js"></script>
 </body>
