@@ -65,6 +65,12 @@ async function authenticateUser(username) {
 }
 
 
+// Helper function to escape filter values for PocketBase
+function escapeFilterValue(value) {
+    // Escape backslashes first, then quotes
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 
 // Initialize App
 async function initApp() {
@@ -225,12 +231,9 @@ async function loadUserScoresFromDB() {
     try {
         const userId = pb.authStore.model.id;
         
-        // Escape filter values to prevent injection
-        const escapedUserId = userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        
         // Fetch all scores for the current user
         const userScores = await pb.collection('scores').getFullList({
-            filter: `user = "${escapedUserId}"`,
+            filter: `user = "${escapeFilterValue(userId)}"`,
         });
         
         // Map scores by game ID
@@ -519,13 +522,9 @@ async function syncScoreToPocketBase(gameId, score) {
         // Get the authenticated user ID
         const userId = pb.authStore.model.id;
         
-        // Escape filter values to prevent injection
-        const escapedUserId = userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const escapedGameId = gameId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        
         // Check if score record exists
         const records = await pb.collection('scores').getFullList({
-            filter: `user = "${escapedUserId}" && game = "${escapedGameId}"`,
+            filter: `user = "${escapeFilterValue(userId)}" && game = "${escapeFilterValue(gameId)}"`,
         });
         
         const data = {
@@ -687,7 +686,7 @@ async function loadComments(gameId, card) {
     try {
         // Fetch comments for this game, sorted by created date descending (newest first)
         const comments = await pb.collection('comments').getFullList({
-            filter: `game = "${gameId.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`,
+            filter: `game = "${escapeFilterValue(gameId)}"`,
             sort: '-created',
             expand: 'user',
         });
@@ -723,10 +722,24 @@ async function loadComments(gameId, card) {
     }
 }
 
+// Show error message inline instead of alert
+function showCommentError(card, message) {
+    const commentsList = card.querySelector('.comments-list');
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'comments-error';
+    errorDiv.textContent = message;
+    commentsList.prepend(errorDiv);
+    
+    // Remove error after 5 seconds
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 5000);
+}
+
 // Submit a Comment
 async function submitComment(gameId, commentText, card) {
     if (!pb || !pb.collection || !pb.authStore.model) {
-        alert('You must be logged in to comment');
+        showCommentError(card, 'You must be logged in to comment');
         return;
     }
     
@@ -743,7 +756,7 @@ async function submitComment(gameId, commentText, card) {
         await loadComments(gameId, card);
     } catch (error) {
         console.error('Failed to submit comment:', error);
-        alert('Failed to submit comment. Please try again.');
+        showCommentError(card, 'Failed to submit comment. Please try again.');
     }
 }
 

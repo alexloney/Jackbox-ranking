@@ -19,6 +19,9 @@
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     --hover-bg: #f1f5f9;
     
+    /* Comments section */
+    --comments-max-height: 300px;
+    
     /* Status message colors */
     --success-bg: #dcfce7;
     --success-text: #166534;
@@ -392,7 +395,7 @@ body.dark-mode .star.hover {
 .comment-section {
     border-top: 1px solid var(--border-color);
     padding: 0.75rem;
-    background: var(--bg-color);
+    background: var(--card-bg);
 }
 
 .comment-input-container {
@@ -438,7 +441,7 @@ body.dark-mode .star.hover {
 }
 
 .comments-list {
-    max-height: 300px;
+    max-height: var(--comments-max-height);
     overflow-y: auto;
 }
 
