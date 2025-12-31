@@ -77,8 +77,9 @@ to see the database with information, then it should be usable.
 ## Features
 
 - 🎮 Simple name-based login with automatic PocketBase authentication
-- 📱 Mobile-friendly responsive design
+- 📱 Mobile-friendly responsive design with optimized card layout
 - 🎯 Score tracking for Jackbox games (1-5 star scale)
+- 💬 Expandable comment sections for each game
 - 🏆 Real-time leaderboard with vote aggregation
 - 💾 PocketBase backend for data persistence
 - 🔐 Secure authentication with user-specific score permissions
@@ -115,7 +116,7 @@ For production deployment, change the `backendUrl` to your PocketBase server URL
 
 3. **Configure the database** (via PocketBase Admin UI at http://127.0.0.1:8090/_/):
    
-   Create two collections:
+   Create three collections:
    
    **Collection: `games`**
    - `name` (text, required)
@@ -133,6 +134,18 @@ For production deployment, change the `backendUrl` to your PocketBase server URL
    - View Rule: `""` (public read)
    - Create Rule: `@request.auth.id != '' && @request.auth.id = user`
    - Update Rule: `@request.auth.id != '' && @request.auth.id = user`
+
+   **Collection: `comments`**
+   - `comment` (text, required - max 500 characters recommended)
+   - `user` (relation to users collection, required)
+   - `game` (relation to games collection, required)
+   - `created` (autodate - set onCreate: true, onUpdate: false)
+   - List Rule: `""` (public read)
+   - View Rule: `""` (public read)
+   - Create Rule: `@request.auth.id != ''` (authenticated users can create)
+   - Delete Rule: `@request.auth.id != '' && @request.auth.id = user` (users can delete their own comments)
+
+   Note: The database schema is available in `db/pb_schema.json` which can be imported via the PocketBase admin UI.
 
 4. **Seed the database** (Optional - first time setup):
    
@@ -201,9 +214,11 @@ npm run test:watch
 
 1. **Login:** Enter your name and click Login (requires PocketBase to be running)
 2. **Score Games:** Click on stars to rate games (1-5 stars, or leave unrated)
-3. **View Leaderboard:** Tap the Leaderboard tab to see average scores from all users (unrated games are excluded from averages)
-4. **Toggle Dark Mode:** Click the moon/sun icon in the header to switch themes
-5. **Seed Database:** Use `seed.html` to populate the database with initial games
+3. **View Comments:** Click the dropdown arrow on any game card to expand the comment section
+4. **Add Comments:** Type your comment in the text field and click "Post Comment"
+5. **View Leaderboard:** Tap the Leaderboard tab to see average scores from all users (unrated games are excluded from averages)
+6. **Toggle Dark Mode:** Click the moon/sun icon in the header to switch themes
+7. **Seed Database:** Use `seed.html` to populate the database with initial games
 
 ## Technology Stack
 
