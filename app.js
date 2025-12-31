@@ -65,6 +65,12 @@ async function authenticateUser(username) {
 }
 
 
+// Helper function to escape filter values for PocketBase
+function escapeFilterValue(value) {
+    // Escape backslashes first, then quotes
+    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 
 // Initialize App
 async function initApp() {
@@ -225,12 +231,9 @@ async function loadUserScoresFromDB() {
     try {
         const userId = pb.authStore.model.id;
         
-        // Escape filter values to prevent injection
-        const escapedUserId = userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        
         // Fetch all scores for the current user
         const userScores = await pb.collection('scores').getFullList({
-            filter: `user = "${escapedUserId}"`,
+            filter: `user = "${escapeFilterValue(userId)}"`,
         });
         
         // Map scores by game ID
@@ -373,13 +376,29 @@ function createGameCard(game) {
     starsHTML += '</div>';
     
     card.innerHTML = `
-        <div class="game-image">
-            ${game.image ? `<img src="${game.image}" alt="${game.name}">` : game.name.charAt(0)}
+        <div class="game-card-header">
+            <div class="game-image">
+                ${game.image ? `<img src="${game.image}" alt="${game.name}">` : game.name.charAt(0)}
+            </div>
+            <div class="game-info">
+                <div class="game-name">${game.name}</div>
+                ${game.pack ? `<div class="game-pack">${game.pack}</div>` : ''}
+                ${starsHTML}
+            </div>
+            <button class="comment-toggle" aria-label="Toggle comments" data-game-id="${game.id}">
+                <svg class="chevron" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
         </div>
-        <div class="game-info">
-            <div class="game-name">${game.name}</div>
-            ${game.pack ? `<div class="game-pack">${game.pack}</div>` : ''}
-            ${starsHTML}
+        <div class="comment-section" style="display: none;">
+            <div class="comment-input-container">
+                <textarea class="comment-input" placeholder="Add a comment..." rows="2" maxlength="500"></textarea>
+                <button class="comment-submit">Post Comment</button>
+            </div>
+            <div class="comments-list">
+                <div class="comments-loading">Loading comments...</div>
+            </div>
         </div>
     `;
     
@@ -392,9 +411,12 @@ function createGameCard(game) {
             // If clicking the same star, reset to 0
             const newScore = currentScore === rating ? 0 : rating;
             updateScore(game.id, newScore);
+            
+            // Remove hover effect after click (important for mobile)
+            stars.forEach(s => s.classList.remove('hover'));
         });
         
-        // Add hover effect
+        // Add hover effect (desktop only)
         star.addEventListener('mouseenter', () => {
             const rating = parseInt(star.dataset.rating);
             stars.forEach((s, index) => {
@@ -411,6 +433,39 @@ function createGameCard(game) {
     const starRating = card.querySelector('.star-rating');
     starRating.addEventListener('mouseleave', () => {
         stars.forEach(s => s.classList.remove('hover'));
+    });
+    
+    // Comment toggle functionality
+    const commentToggle = card.querySelector('.comment-toggle');
+    const commentSection = card.querySelector('.comment-section');
+    const chevron = commentToggle.querySelector('.chevron');
+    
+    commentToggle.addEventListener('click', async () => {
+        const isExpanded = commentSection.style.display !== 'none';
+        
+        if (isExpanded) {
+            // Collapse
+            commentSection.style.display = 'none';
+            chevron.style.transform = 'rotate(0deg)';
+        } else {
+            // Expand
+            commentSection.style.display = 'block';
+            chevron.style.transform = 'rotate(180deg)';
+            // Load comments when expanding
+            await loadComments(game.id, card);
+        }
+    });
+    
+    // Comment submit functionality
+    const commentSubmit = card.querySelector('.comment-submit');
+    const commentInput = card.querySelector('.comment-input');
+    
+    commentSubmit.addEventListener('click', async () => {
+        const commentText = commentInput.value.trim();
+        if (commentText) {
+            await submitComment(game.id, commentText, card);
+            commentInput.value = '';
+        }
     });
     
     return card;
@@ -467,13 +522,9 @@ async function syncScoreToPocketBase(gameId, score) {
         // Get the authenticated user ID
         const userId = pb.authStore.model.id;
         
-        // Escape filter values to prevent injection
-        const escapedUserId = userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        const escapedGameId = gameId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-        
         // Check if score record exists
         const records = await pb.collection('scores').getFullList({
-            filter: `user = "${escapedUserId}" && game = "${escapedGameId}"`,
+            filter: `user = "${escapeFilterValue(userId)}" && game = "${escapeFilterValue(gameId)}"`,
         });
         
         const data = {
@@ -622,6 +673,99 @@ async function getAllVotes() {
     }
 }
 
+
+// Load Comments for a Game
+async function loadComments(gameId, card) {
+    const commentsList = card.querySelector('.comments-list');
+    
+    if (!pb || !pb.collection) {
+        commentsList.innerHTML = '<div class="comments-error">Comments unavailable - database not connected</div>';
+        return;
+    }
+    
+    try {
+        // Fetch comments for this game, sorted by created date descending (newest first)
+        const comments = await pb.collection('comments').getFullList({
+            filter: `game = "${escapeFilterValue(gameId)}"`,
+            sort: '-created',
+            expand: 'user',
+        });
+        
+        if (comments.length === 0) {
+            commentsList.innerHTML = '<div class="comments-empty">No comments yet. Be the first to comment!</div>';
+            return;
+        }
+        
+        // Render comments
+        commentsList.innerHTML = '';
+        comments.forEach(comment => {
+            const commentEl = document.createElement('div');
+            commentEl.className = 'comment-item';
+            
+            const username = comment.expand?.user?.email?.replace('@example.com', '') || 'Anonymous';
+            const date = new Date(comment.created);
+            const formattedDate = date.toLocaleString();
+            
+            commentEl.innerHTML = `
+                <div class="comment-header">
+                    <span class="comment-user">${username}</span>
+                    <span class="comment-date">${formattedDate}</span>
+                </div>
+                <div class="comment-text">${escapeHtml(comment.comment)}</div>
+            `;
+            
+            commentsList.appendChild(commentEl);
+        });
+    } catch (error) {
+        console.error('Failed to load comments:', error);
+        commentsList.innerHTML = '<div class="comments-error">Failed to load comments</div>';
+    }
+}
+
+// Show error message inline instead of alert
+function showCommentError(card, message) {
+    const commentsList = card.querySelector('.comments-list');
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'comments-error';
+    errorDiv.textContent = message;
+    commentsList.prepend(errorDiv);
+    
+    // Remove error after 5 seconds
+    setTimeout(() => {
+        errorDiv.remove();
+    }, 5000);
+}
+
+// Submit a Comment
+async function submitComment(gameId, commentText, card) {
+    if (!pb || !pb.collection || !pb.authStore.model) {
+        showCommentError(card, 'You must be logged in to comment');
+        return;
+    }
+    
+    try {
+        const userId = pb.authStore.model.id;
+        
+        await pb.collection('comments').create({
+            comment: commentText,
+            user: userId,
+            game: gameId,
+        });
+        
+        // Reload comments to show the new one
+        await loadComments(gameId, card);
+    } catch (error) {
+        console.error('Failed to submit comment:', error);
+        showCommentError(card, 'Failed to submit comment. Please try again.');
+    }
+}
+
+// Helper function to escape HTML and prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 
 // Export functions for testing
