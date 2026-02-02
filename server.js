@@ -115,9 +115,9 @@ db.exec(`
     CREATE INDEX IF NOT EXISTS idx_comments_user ON comments(user);
 `);
 
-// Helper function to generate ID
+// Helper function to generate ID (15 chars to match PocketBase format)
 function generateId() {
-    return crypto.randomBytes(8).toString('hex').substring(0, 15);
+    return crypto.randomBytes(8).toString('hex').slice(0, 15);
 }
 
 // Helper function to get current timestamp
@@ -126,6 +126,9 @@ function getCurrentTimestamp() {
 }
 
 // In-memory session store (simple implementation)
+// WARNING: Sessions are stored in memory and will be lost on server restart.
+// Users will need to re-authenticate after a restart.
+// For production, consider using a persistent session store (Redis, database, etc.)
 const sessions = new Map();
 
 // Middleware to check authentication

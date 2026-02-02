@@ -643,7 +643,7 @@ async function getAllVotes() {
         });
         
         return data.items.map(r => ({
-            user: r.user.substring(0, 8), // Use user ID prefix as identifier
+            user: r.user, // Use full user ID as identifier
             gameName: gamesMap[r.game] || 'Unknown',
             score: r.score || 0
         }));
