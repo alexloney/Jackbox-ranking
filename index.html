@@ -94,7 +94,9 @@
     <!-- Configuration: Change backendUrl for deployment -->
     <script>
         window.JACKBOX_CONFIG = {
-            backendUrl: 'http://localhost:3000'
+            // When empty string, uses current origin (recommended for production)
+            // For local development, use 'http://localhost:3000'
+            backendUrl: ''
         };
     </script>
     <script src="app.js"></script>

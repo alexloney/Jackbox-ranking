@@ -1,6 +1,7 @@
 // Backend API Configuration
-// To change the backend URL for deployment, modify the value below
-const API_URL = window.JACKBOX_CONFIG?.backendUrl || 'http://localhost:3000';
+// To change the backend URL for deployment, modify the value in index.html
+// Empty string ('') uses the current origin, recommended for production
+const API_URL = window.JACKBOX_CONFIG?.backendUrl || '';
 let authToken = null;
 let currentUserId = null;
 
