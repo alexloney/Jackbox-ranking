@@ -1,18 +1,8 @@
-// PocketBase Configuration
+// Backend API Configuration
 // To change the backend URL for deployment, modify the value below
-const PB_URL = window.JACKBOX_CONFIG?.backendUrl || 'http://127.0.0.1:8090';
-let pb;
-
-// Initialize PocketBase
-if (typeof PocketBase !== 'undefined') {
-    try {
-        pb = new PocketBase(PB_URL);
-    } catch (error) {
-        console.error('Failed to initialize PocketBase:', error);
-    }
-} else {
-    console.error('PocketBase SDK not loaded');
-}
+const API_URL = window.JACKBOX_CONFIG?.backendUrl || 'http://localhost:3000';
+let authToken = null;
+let currentUserId = null;
 
 // App State
 let currentUser = null;
@@ -34,41 +24,58 @@ const navBtns = document.querySelectorAll('.nav-btn');
 const gameNameFilter = document.getElementById('game-name-filter');
 const packFilter = document.getElementById('pack-filter');
 
-// Authenticate User with PocketBase
+// Authenticate User with Backend API
 async function authenticateUser(username) {
-    if (!pb || !pb.collection) {
-        throw new Error('Backend database is not available. Please ensure PocketBase is running.');
-    }
-    
     const email = `${username.toLowerCase()}@example.com`;
-    const password = email;
     
     try {
-        // Try to authenticate existing user
-        await pb.collection('users').authWithPassword(email, password);
-    } catch (error) {
-        // If authentication fails, try to create the user
-        try {
-            await pb.collection('users').create({
-                email: email,
-                password: password,
-                passwordConfirm: password,
-                emailVisibility: true,
-            });
-            // Authenticate after creation
-            await pb.collection('users').authWithPassword(email, password);
-        } catch (createError) {
-            console.error('Failed to create user:', createError);
-            throw createError;
+        const response = await fetch(`${API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email }),
+        });
+        
+        if (!response.ok) {
+            throw new Error('Authentication failed');
         }
+        
+        const data = await response.json();
+        authToken = data.token;
+        currentUserId = data.user.id;
+        
+        // Store token in localStorage for session persistence
+        localStorage.setItem('jackbox_token', authToken);
+        localStorage.setItem('jackbox_userId', currentUserId);
+    } catch (error) {
+        console.error('Failed to authenticate:', error);
+        throw new Error('Backend database is not available. Please ensure the server is running.');
     }
 }
 
-
-// Helper function to escape filter values for PocketBase
-function escapeFilterValue(value) {
-    // Escape backslashes first, then quotes
-    return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+// Helper function to make authenticated API requests
+async function apiRequest(endpoint, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+    };
+    
+    if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    
+    const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers,
+    });
+    
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(error.error || 'Request failed');
+    }
+    
+    return response.json();
 }
 
 
@@ -79,18 +86,22 @@ async function initApp() {
     
     // Check for existing session
     const savedUser = localStorage.getItem('jackbox_user');
-    if (savedUser) {
+    const savedToken = localStorage.getItem('jackbox_token');
+    const savedUserId = localStorage.getItem('jackbox_userId');
+    
+    if (savedUser && savedToken && savedUserId) {
         currentUser = savedUser;
+        authToken = savedToken;
+        currentUserId = savedUserId;
         
-        // Try to re-authenticate with PocketBase
+        // Verify token is still valid
         try {
-            await authenticateUser(savedUser);
+            await apiRequest('/api/auth/verify');
             showAppScreen();
             await loadGames();
-            setupRealtimeSubscriptions();
         } catch (error) {
-            console.error('Failed to re-authenticate on app init:', error);
-            alert('Error: Cannot connect to the backend database. Please ensure PocketBase is running at ' + PB_URL);
+            console.error('Session verification failed:', error);
+            alert('Error: Cannot connect to the backend database. Please ensure the server is running at ' + API_URL);
             handleLogout();
         }
     }
@@ -157,15 +168,14 @@ async function handleLogin(e) {
         currentUser = username;
         localStorage.setItem('jackbox_user', username);
         
-        // Authenticate with PocketBase
+        // Authenticate with Backend API
         try {
             await authenticateUser(username);
             showAppScreen();
             await loadGames();
-            setupRealtimeSubscriptions();
         } catch (error) {
             console.error('Login failed:', error);
-            alert('Error: Cannot connect to the backend database. Please ensure PocketBase is running at ' + PB_URL);
+            alert('Error: Cannot connect to the backend database. Please ensure the server is running at ' + API_URL);
             currentUser = null;
             localStorage.removeItem('jackbox_user');
         }
@@ -175,12 +185,18 @@ async function handleLogin(e) {
 // Handle Logout
 function handleLogout() {
     currentUser = null;
+    authToken = null;
+    currentUserId = null;
     localStorage.removeItem('jackbox_user');
+    localStorage.removeItem('jackbox_token');
+    localStorage.removeItem('jackbox_userId');
     unsubscribeAll();
     
-    // Clear PocketBase auth state
-    if (pb && pb.authStore) {
-        pb.authStore.clear();
+    // Call logout endpoint if we have a token
+    if (authToken) {
+        apiRequest('/api/auth/logout', { method: 'POST' }).catch(err => {
+            console.warn('Logout request failed:', err);
+        });
     }
     
     showLoginScreen();
@@ -222,23 +238,19 @@ function switchTab(tabId) {
     }
 }
 
-// Load User Scores from PocketBase
+// Load User Scores from Database
 async function loadUserScoresFromDB() {
-    if (!pb || !pb.collection || !pb.authStore.model) {
+    if (!authToken || !currentUserId) {
         return {};
     }
     
     try {
-        const userId = pb.authStore.model.id;
-        
         // Fetch all scores for the current user
-        const userScores = await pb.collection('scores').getFullList({
-            filter: `user = "${escapeFilterValue(userId)}"`,
-        });
+        const data = await apiRequest(`/api/scores?user=${currentUserId}`);
         
         // Map scores by game ID
         const scoresMap = {};
-        userScores.forEach(record => {
+        data.items.forEach(record => {
             scoresMap[record.game] = record.score ?? 0;
         });
         
@@ -252,17 +264,11 @@ async function loadUserScoresFromDB() {
 // Load Games
 async function loadGames() {
     try {
-        if (!pb || !pb.collection) {
-            throw new Error('Backend database is not available. Please ensure PocketBase is running.');
-        }
+        // Try to load from Backend API
+        const data = await apiRequest('/api/games');
         
-        // Try to load from PocketBase
-        const records = await pb.collection('games').getFullList({
-            sort: 'name',
-        });
-        
-        // Map PocketBase records to expected format
-        games = records.map(record => ({
+        // Map API response to expected format
+        games = data.items.map(record => ({
             id: record.id,
             name: record.name,
             image: record.img || '',
@@ -285,7 +291,7 @@ async function loadGames() {
         renderGames();
     } catch (error) {
         console.error('Failed to load games from backend:', error);
-        alert('Error: Cannot connect to the backend database. Please ensure PocketBase is running at ' + PB_URL);
+        alert('Error: Cannot connect to the backend database. Please ensure the server is running at ' + API_URL);
         handleLogout();
     }
 }
@@ -492,13 +498,13 @@ async function updateScore(gameId, newScore) {
         updateStarDisplay(card, newScore);
     }
     
-    // Sync to PocketBase if available
+    // Sync to Backend API if available
     try {
-        if (pb && pb.collection) {
+        if (authToken && currentUserId) {
             await syncScoreToPocketBase(gameId, newScore);
         }
     } catch (error) {
-        console.warn('Failed to sync score to PocketBase', error);
+        console.warn('Failed to sync score to backend', error);
     }
 }
 
@@ -514,54 +520,27 @@ function updateStarDisplay(card, score) {
     });
 }
 
-// Sync Score to PocketBase
+// Sync Score to Backend
 async function syncScoreToPocketBase(gameId, score) {
-    if (!pb || !pb.collection || !pb.authStore.model) return;
+    if (!authToken || !currentUserId) return;
     
     try {
-        // Get the authenticated user ID
-        const userId = pb.authStore.model.id;
-        
-        // Check if score record exists
-        const records = await pb.collection('scores').getFullList({
-            filter: `user = "${escapeFilterValue(userId)}" && game = "${escapeFilterValue(gameId)}"`,
+        await apiRequest('/api/scores', {
+            method: 'POST',
+            body: JSON.stringify({
+                game: gameId,
+                score: score,
+            }),
         });
-        
-        const data = {
-            user: userId,
-            game: gameId,
-            score: score,
-        };
-        
-        if (records.length > 0) {
-            // Update existing record
-            await pb.collection('scores').update(records[0].id, data);
-        } else {
-            // Create new record
-            await pb.collection('scores').create(data);
-        }
     } catch (error) {
         console.error('Error syncing score:', error);
     }
 }
 
-// Setup Realtime Subscriptions
+// Setup Realtime Subscriptions (removed - no websocket support yet)
 async function setupRealtimeSubscriptions() {
-    if (!pb || !pb.collection) return;
-    
-    try {
-        // Subscribe to scores changes
-        const unsubscribe = await pb.collection('scores').subscribe('*', () => {
-            // Refresh leaderboard when scores change
-            if (document.getElementById('leaderboard-tab').classList.contains('active')) {
-                renderLeaderboard();
-            }
-        });
-        
-        subscriptions.push(unsubscribe);
-    } catch (error) {
-        console.warn('Failed to setup realtime subscriptions', error);
-    }
+    // Real-time subscriptions not implemented in this version
+    // Could be added later with WebSocket support
 }
 
 // Unsubscribe All
@@ -653,19 +632,20 @@ async function renderLeaderboard() {
 // Helper to get raw vote data
 async function getAllVotes() {
     try {
-        if (!pb || !pb.collection) {
-            throw new Error('Backend database is not available');
-        }
+        // Fetch all scores with user and game data
+        const data = await apiRequest('/api/scores');
         
-        // Ensure you expand 'game' and 'user' to get the names
-        const records = await pb.collection('scores').getFullList({
-            expand: 'game,user',
-            sort: 'created', // Consistent ordering
+        // Fetch all users and games to join the data
+        const gamesData = await apiRequest('/api/games');
+        const gamesMap = {};
+        gamesData.items.forEach(g => {
+            gamesMap[g.id] = g.name;
         });
-        return records.map(r => ({
-            user: r.expand?.user?.email?.replace('@example.com', '') || 'Unknown',
-            gameName: r.expand?.game?.name || 'Unknown',
-            score: r.score
+        
+        return data.items.map(r => ({
+            user: r.user.substring(0, 8), // Use user ID prefix as identifier
+            gameName: gamesMap[r.game] || 'Unknown',
+            score: r.score || 0
         }));
     } catch (e) {
         console.warn('Failed to fetch votes in getAllVotes:', e);
@@ -678,27 +658,18 @@ async function getAllVotes() {
 async function loadComments(gameId, card) {
     const commentsList = card.querySelector('.comments-list');
     
-    if (!pb || !pb.collection) {
-        commentsList.innerHTML = '<div class="comments-error">Comments unavailable - database not connected</div>';
-        return;
-    }
-    
     try {
-        // Fetch comments for this game, sorted by created date descending (newest first)
-        const comments = await pb.collection('comments').getFullList({
-            filter: `game = "${escapeFilterValue(gameId)}"`,
-            sort: '-created',
-            expand: 'user',
-        });
+        // Fetch comments for this game
+        const data = await apiRequest(`/api/comments?game=${gameId}`);
         
-        if (comments.length === 0) {
+        if (data.items.length === 0) {
             commentsList.innerHTML = '<div class="comments-empty">No comments yet. Be the first to comment!</div>';
             return;
         }
         
         // Render comments
         commentsList.innerHTML = '';
-        comments.forEach(comment => {
+        data.items.forEach(comment => {
             const commentEl = document.createElement('div');
             commentEl.className = 'comment-item';
             
@@ -738,18 +709,18 @@ function showCommentError(card, message) {
 
 // Submit a Comment
 async function submitComment(gameId, commentText, card) {
-    if (!pb || !pb.collection || !pb.authStore.model) {
+    if (!authToken || !currentUserId) {
         showCommentError(card, 'You must be logged in to comment');
         return;
     }
     
     try {
-        const userId = pb.authStore.model.id;
-        
-        await pb.collection('comments').create({
-            comment: commentText,
-            user: userId,
-            game: gameId,
+        await apiRequest('/api/comments', {
+            method: 'POST',
+            body: JSON.stringify({
+                comment: commentText,
+                game: gameId,
+            }),
         });
         
         // Reload comments to show the new one

@@ -93,20 +93,19 @@
     <div class="seed-container">
         <h1>Database Seeding</h1>
         <p>
-            This utility will seed the PocketBase database with initial Jackbox games from Party Pack 1.
-            Only use this if you have set up PocketBase and created the required collections.
+            This utility will seed the database with initial Jackbox games from all Party Packs.
+            Only use this if you have set up the backend server.
         </p>
         <p>
             <strong>Prerequisites:</strong>
         </p>
         <ul style="margin-bottom: 1.5rem; color: var(--text-secondary); line-height: 1.8;">
-            <li>PocketBase must be running (configured at <code id="pb-url-display"></code>)</li>
-            <li>The <code>games</code> collection must exist</li>
-            <li>You must have admin access or proper permissions</li>
+            <li>Backend server must be running (configured at <code id="pb-url-display"></code>)</li>
+            <li>You must be logged in with valid credentials</li>
         </ul>
         <script>
             // Display the configured backend URL
-            document.getElementById('pb-url-display').textContent = window.JACKBOX_CONFIG?.backendUrl || 'http://127.0.0.1:8090';
+            document.getElementById('pb-url-display').textContent = window.JACKBOX_CONFIG?.backendUrl || 'http://localhost:3000';
         </script>
         
         <button id="seed-btn" class="seed-btn">Seed Database</button>
@@ -118,25 +117,11 @@
     <!-- Configuration: Change backendUrl for deployment -->
     <script>
         window.JACKBOX_CONFIG = {
-            backendUrl: 'http://127.0.0.1:8090'
+            backendUrl: 'http://localhost:3000'
         };
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/pocketbase@0.19.0/dist/pocketbase.umd.js"></script>
     <script>
-        const PB_URL = window.JACKBOX_CONFIG?.backendUrl || 'http://127.0.0.1:8090';
-        let pb;
-        
-        // Initialize PocketBase
-        if (typeof PocketBase !== 'undefined') {
-            try {
-                pb = new PocketBase(PB_URL);
-            } catch (error) {
-                console.error('Failed to initialize PocketBase:', error);
-                showStatus('Failed to initialize PocketBase: ' + error.message, 'error');
-            }
-        } else {
-            showStatus('PocketBase SDK not loaded', 'error');
-        }
+        const API_URL = window.JACKBOX_CONFIG?.backendUrl || 'http://localhost:3000';
         
         // Status message helper
         function showStatus(message, type) {
@@ -146,12 +131,39 @@
             statusEl.style.display = 'block';
         }
         
+        // Helper function for API requests
+        async function apiRequest(endpoint, options = {}) {
+            const authToken = localStorage.getItem('jackbox_token');
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers,
+            };
+            
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                ...options,
+                headers,
+            });
+            
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({ error: 'Request failed' }));
+                throw new Error(error.error || 'Request failed');
+            }
+            
+            return response.json();
+        }
+        
         // Seed database function
         async function seedDatabase() {
             const btn = document.getElementById('seed-btn');
             
-            if (!pb || !pb.collection) {
-                showStatus('Error: PocketBase is not available. Please ensure it is running at ' + PB_URL, 'error');
+            // Check if user is logged in
+            const authToken = localStorage.getItem('jackbox_token');
+            if (!authToken) {
+                showStatus('Error: You must be logged in first. Please login via index.html', 'error');
                 return;
             }
             
@@ -160,12 +172,10 @@
             
             try {
                 // Check if Games collection has any records
-                const existingGames = await pb.collection('games').getList(1, 1);
+                const existingGames = await apiRequest('/api/games');
                 
                 if (existingGames.items.length > 0) {
-                    showStatus('Database already has games. No seeding needed.', 'info');
-                    btn.disabled = false;
-                    return;
+                    showStatus('Database already has ' + existingGames.items.length + ' games. Seeding anyway...', 'info');
                 }
 
                 const gamesToSeed = [
@@ -246,14 +256,17 @@
                 showStatus('Seeding database with ' + gamesToSeed.length + ' games...', 'info');
                 
                 for (const game of gamesToSeed) {
-                    await pb.collection('games').create(game);
+                    await apiRequest('/api/games', {
+                        method: 'POST',
+                        body: JSON.stringify(game)
+                    });
                 }
                 
-                showStatus('Success! Database seeded with ' + gamesToSeed.length + ' games from Party Pack 1.', 'success');
+                showStatus('Success! Database seeded with ' + gamesToSeed.length + ' games.', 'success');
                 
             } catch (error) {
                 console.error('Seeding error:', error);
-                showStatus('Error: ' + error.message + '. Make sure the games collection exists and you have proper permissions.', 'error');
+                showStatus('Error: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
             }
