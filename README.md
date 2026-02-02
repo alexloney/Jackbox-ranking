@@ -63,8 +63,9 @@ services:
 
 **Important:** 
 - Update the volume path to persist your database across container restarts
-- Update `backendUrl` in both `index.html` and `seed.html` to match your production URL
-- Consider setting up a reverse proxy (nginx, traefik, etc.) for HTTPS
+- The application is configured to use relative URLs by default, which works when served from the same origin
+- If deploying behind a reverse proxy (nginx, traefik, etc.), the app is configured to trust proxy headers
+- Consider setting up a reverse proxy for HTTPS
 
 ## Features
 
@@ -82,17 +83,34 @@ services:
 
 ## Configuration
 
-The backend URL can be configured by editing the `JACKBOX_CONFIG` object in `index.html` and `seed.html`:
+### Backend URL Configuration
+
+The application is configured to use relative URLs by default, which is recommended for production deployments:
 
 ```html
 <script>
     window.JACKBOX_CONFIG = {
-        backendUrl: 'http://localhost:3000'  // Change this for deployment
+        // Empty string uses current origin (recommended for production)
+        backendUrl: ''
     };
 </script>
 ```
 
-For production deployment, change the `backendUrl` to your server's URL.
+**For local development** with a separate backend server, you can specify the full URL:
+```html
+<script>
+    window.JACKBOX_CONFIG = {
+        backendUrl: 'http://localhost:3000'
+    };
+</script>
+```
+
+### Reverse Proxy Support
+
+The application is configured with `trust proxy` enabled in Express, allowing it to work correctly behind reverse proxies like nginx or traefik. This ensures:
+- Proper rate limiting based on client IP
+- Correct handling of X-Forwarded-For headers
+- Support for HTTPS termination at the proxy level
 
 ## Database Seeding
 
