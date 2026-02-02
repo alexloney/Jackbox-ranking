@@ -4,14 +4,56 @@ const bodyParser = require('body-parser');
 const Database = require('better-sqlite3');
 const path = require('path');
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Rate limiting configuration
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: 'Too many requests from this IP, please try again later.'
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 login attempts per windowMs
+    message: 'Too many login attempts from this IP, please try again later.'
+});
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(__dirname));
+
+// Middleware to block access to sensitive files
+app.use((req, res, next) => {
+    const blockedFiles = [
+        'server.js', 'package.json', 'package-lock.json', 
+        'Dockerfile', 'docker-compose.yml', '.gitignore',
+        'jest.config.js', 'jest.setup.js'
+    ];
+    const blockedDirs = ['node_modules', 'data', '__tests__', '.git', 'coverage'];
+    const requestPath = req.path.substring(1); // Remove leading slash
+    
+    // Block specific files
+    if (blockedFiles.includes(requestPath) || requestPath.endsWith('.backup')) {
+        return res.status(403).send('Forbidden');
+    }
+    
+    // Block directory access
+    if (blockedDirs.some(dir => requestPath.startsWith(dir + '/') || requestPath === dir)) {
+        return res.status(403).send('Forbidden');
+    }
+    
+    next();
+});
+
+// Serve static files
+app.use(express.static(__dirname, {
+    index: ['index.html'],
+    dotfiles: 'deny' // Deny access to hidden files
+}));
 
 // Initialize SQLite database
 const dbPath = process.env.DB_PATH || path.join(__dirname, 'data', 'jackbox.db');
@@ -108,7 +150,7 @@ function requireAuth(req, res, next) {
 // API Routes
 
 // Authentication
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', authLimiter, (req, res) => {
     const { email } = req.body;
     
     if (!email) {
@@ -154,20 +196,20 @@ app.post('/api/auth/login', (req, res) => {
     }
 });
 
-app.post('/api/auth/logout', requireAuth, (req, res) => {
+app.post('/api/auth/logout', apiLimiter, requireAuth, (req, res) => {
     const authHeader = req.headers.authorization;
     const token = authHeader.substring(7);
     sessions.delete(token);
     res.json({ success: true });
 });
 
-app.get('/api/auth/verify', requireAuth, (req, res) => {
+app.get('/api/auth/verify', apiLimiter, requireAuth, (req, res) => {
     const user = db.prepare('SELECT id, email, name FROM users WHERE id = ?').get(req.userId);
     res.json({ user });
 });
 
 // Games
-app.get('/api/games', (req, res) => {
+app.get('/api/games', apiLimiter, (req, res) => {
     try {
         const games = db.prepare('SELECT * FROM games ORDER BY name').all();
         res.json({ items: games });
@@ -177,7 +219,7 @@ app.get('/api/games', (req, res) => {
     }
 });
 
-app.post('/api/games', requireAuth, (req, res) => {
+app.post('/api/games', apiLimiter, requireAuth, (req, res) => {
     const { name, pack, img } = req.body;
     
     if (!name) {
@@ -202,7 +244,7 @@ app.post('/api/games', requireAuth, (req, res) => {
 });
 
 // Scores
-app.get('/api/scores', (req, res) => {
+app.get('/api/scores', apiLimiter, (req, res) => {
     try {
         const { user, game } = req.query;
         let query = 'SELECT * FROM scores';
@@ -230,7 +272,7 @@ app.get('/api/scores', (req, res) => {
     }
 });
 
-app.post('/api/scores', requireAuth, (req, res) => {
+app.post('/api/scores', apiLimiter, requireAuth, (req, res) => {
     const { game, score } = req.body;
     
     if (!game) {
@@ -273,7 +315,7 @@ app.post('/api/scores', requireAuth, (req, res) => {
 });
 
 // Comments
-app.get('/api/comments', (req, res) => {
+app.get('/api/comments', apiLimiter, (req, res) => {
     try {
         const { game } = req.query;
         let query = `
@@ -316,7 +358,7 @@ app.get('/api/comments', (req, res) => {
     }
 });
 
-app.post('/api/comments', requireAuth, (req, res) => {
+app.post('/api/comments', apiLimiter, requireAuth, (req, res) => {
     const { game, comment } = req.body;
     
     if (!game || !comment) {
@@ -364,7 +406,7 @@ app.post('/api/comments', requireAuth, (req, res) => {
     }
 });
 
-app.delete('/api/comments/:id', requireAuth, (req, res) => {
+app.delete('/api/comments/:id', apiLimiter, requireAuth, (req, res) => {
     const { id } = req.params;
     
     try {
