@@ -103,10 +103,6 @@
             <li>Backend server must be running (configured at <code id="pb-url-display"></code>)</li>
             <li>You must be logged in with valid credentials</li>
         </ul>
-        <script>
-            // Display the configured backend URL
-            document.getElementById('pb-url-display').textContent = window.JACKBOX_CONFIG?.backendUrl || 'http://localhost:3000';
-        </script>
         
         <button id="seed-btn" class="seed-btn">Seed Database</button>
         <div id="status-message" class="status-message"></div>
@@ -117,11 +113,17 @@
     <!-- Configuration: Change backendUrl for deployment -->
     <script>
         window.JACKBOX_CONFIG = {
-            backendUrl: 'http://localhost:3000'
+            // When empty string, uses current origin (recommended for production)
+            // For local development, use 'http://localhost:3000'
+            backendUrl: ''
         };
     </script>
     <script>
-        const API_URL = window.JACKBOX_CONFIG?.backendUrl || 'http://localhost:3000';
+        // Display the configured backend URL
+        const configuredUrl = window.JACKBOX_CONFIG?.backendUrl || '';
+        document.getElementById('pb-url-display').textContent = configuredUrl === '' ? window.location.origin : configuredUrl;
+        
+        const API_URL = window.JACKBOX_CONFIG?.backendUrl || '';
         
         // Status message helper
         function showStatus(message, type) {

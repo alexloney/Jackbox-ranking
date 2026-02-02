@@ -9,6 +9,9 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy - required when behind a reverse proxy (nginx, etc.)
+app.set('trust proxy', true);
+
 // Rate limiting configuration
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
