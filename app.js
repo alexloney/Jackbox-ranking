@@ -10,6 +10,8 @@ let currentUser = null;
 let games = [];
 let scores = {};
 let subscriptions = [];
+// Track expanded comment sections for auto-refresh
+let expandedCommentSections = new Map(); // gameId -> { card, intervalId }
 
 // DOM Elements
 const loginScreen = document.getElementById('login-screen');
@@ -192,6 +194,7 @@ function handleLogout() {
     localStorage.removeItem('jackbox_token');
     localStorage.removeItem('jackbox_userId');
     unsubscribeAll();
+    stopAllCommentAutoRefresh();
     
     // Call logout endpoint if we have a token
     if (authToken) {
@@ -454,12 +457,16 @@ function createGameCard(game) {
             // Collapse
             commentSection.style.display = 'none';
             chevron.style.transform = 'rotate(0deg)';
+            // Stop auto-refresh when collapsed
+            stopCommentAutoRefresh(game.id);
         } else {
             // Expand
             commentSection.style.display = 'block';
             chevron.style.transform = 'rotate(180deg)';
             // Load comments when expanding
             await loadComments(game.id, card);
+            // Start auto-refresh when expanded
+            startCommentAutoRefresh(game.id, card);
         }
     });
     
@@ -668,11 +675,31 @@ async function loadComments(gameId, card) {
             return;
         }
         
-        // Render comments
-        commentsList.innerHTML = '';
+        // Get existing comment IDs to avoid duplicates
+        const existingCommentIds = new Set(
+            Array.from(commentsList.querySelectorAll('.comment-item'))
+                .map(el => el.dataset.commentId)
+                .filter(id => id)
+        );
+        
+        // Check if we need to re-render everything (e.g., first load)
+        const isFirstLoad = commentsList.querySelector('.comments-loading') || 
+                           commentsList.querySelector('.comments-empty');
+        
+        if (isFirstLoad) {
+            commentsList.innerHTML = '';
+        }
+        
+        // Render comments (prepend new ones to the top)
         data.items.forEach(comment => {
+            // Skip if comment already exists
+            if (existingCommentIds.has(comment.id)) {
+                return;
+            }
+            
             const commentEl = document.createElement('div');
             commentEl.className = 'comment-item';
+            commentEl.dataset.commentId = comment.id;
             
             const username = comment.expand?.user?.email?.replace('@example.com', '') || 'Anonymous';
             const date = new Date(comment.created);
@@ -686,12 +713,45 @@ async function loadComments(gameId, card) {
                 <div class="comment-text">${escapeHtml(comment.comment)}</div>
             `;
             
-            commentsList.appendChild(commentEl);
+            // Prepend new comments to the top
+            commentsList.insertBefore(commentEl, commentsList.firstChild);
         });
     } catch (error) {
         console.error('Failed to load comments:', error);
         commentsList.innerHTML = '<div class="comments-error">Failed to load comments</div>';
     }
+}
+
+// Start auto-refresh for comment section
+function startCommentAutoRefresh(gameId, card) {
+    // Don't start if already running
+    if (expandedCommentSections.has(gameId)) {
+        return;
+    }
+    
+    // Poll for new comments every 5 seconds
+    const intervalId = setInterval(async () => {
+        await loadComments(gameId, card);
+    }, 5000);
+    
+    expandedCommentSections.set(gameId, { card, intervalId });
+}
+
+// Stop auto-refresh for comment section
+function stopCommentAutoRefresh(gameId) {
+    const section = expandedCommentSections.get(gameId);
+    if (section) {
+        clearInterval(section.intervalId);
+        expandedCommentSections.delete(gameId);
+    }
+}
+
+// Stop all auto-refresh intervals (called on logout)
+function stopAllCommentAutoRefresh() {
+    expandedCommentSections.forEach((section, gameId) => {
+        clearInterval(section.intervalId);
+    });
+    expandedCommentSections.clear();
 }
 
 // Show error message inline instead of alert
