@@ -690,16 +690,15 @@ async function loadComments(gameId, card) {
             commentsList.innerHTML = '';
         }
         
-        // Render comments (prepend new ones to the top)
-        data.items.forEach(comment => {
-            // Skip if comment already exists
-            if (existingCommentIds.has(comment.id)) {
-                return;
-            }
-            
+        // Render comments - API returns newest first (ORDER BY created DESC)
+        // We prepend each one, so we need to reverse to maintain newest-first order
+        const newComments = data.items.filter(comment => !existingCommentIds.has(String(comment.id)));
+        
+        // Reverse so oldest new comment is prepended first, then newer ones
+        newComments.reverse().forEach(comment => {
             const commentEl = document.createElement('div');
             commentEl.className = 'comment-item';
-            commentEl.dataset.commentId = comment.id;
+            commentEl.dataset.commentId = String(comment.id);
             
             const username = comment.expand?.user?.email?.replace('@example.com', '') || 'Anonymous';
             const date = new Date(comment.created);
@@ -729,19 +728,35 @@ function startCommentAutoRefresh(gameId, card) {
         return;
     }
     
-    // Poll for new comments every 5 seconds
-    const intervalId = setInterval(async () => {
-        await loadComments(gameId, card);
-    }, 5000);
+    // Use recursive setTimeout to avoid overlapping requests
+    let timeoutId;
+    const pollComments = async () => {
+        try {
+            await loadComments(gameId, card);
+        } catch (error) {
+            console.error('Error polling comments:', error);
+        }
+        
+        // Schedule next poll only after current one completes
+        // Check if still expanded before scheduling next poll
+        if (expandedCommentSections.has(gameId)) {
+            timeoutId = setTimeout(pollComments, 5000);
+            // Update the stored timeout ID
+            expandedCommentSections.get(gameId).timeoutId = timeoutId;
+        }
+    };
     
-    expandedCommentSections.set(gameId, { card, intervalId });
+    // Start first poll after 5 seconds
+    timeoutId = setTimeout(pollComments, 5000);
+    
+    expandedCommentSections.set(gameId, { card, timeoutId });
 }
 
 // Stop auto-refresh for comment section
 function stopCommentAutoRefresh(gameId) {
     const section = expandedCommentSections.get(gameId);
     if (section) {
-        clearInterval(section.intervalId);
+        clearTimeout(section.timeoutId);
         expandedCommentSections.delete(gameId);
     }
 }
@@ -749,7 +764,7 @@ function stopCommentAutoRefresh(gameId) {
 // Stop all auto-refresh intervals (called on logout)
 function stopAllCommentAutoRefresh() {
     expandedCommentSections.forEach((section, gameId) => {
-        clearInterval(section.intervalId);
+        clearTimeout(section.timeoutId);
     });
     expandedCommentSections.clear();
 }
