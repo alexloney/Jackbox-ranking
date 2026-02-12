@@ -682,8 +682,9 @@ async function loadComments(gameId, card) {
                 .filter(id => id)
         );
         
-        // Check if we need to re-render everything (e.g., first load)
-        const isFirstLoad = commentsList.querySelector('.comments-loading') || 
+        // Check if we need to re-render everything (e.g., first load or empty state)
+        const isFirstLoad = commentsList.children.length === 0 || 
+                           commentsList.querySelector('.comments-loading') || 
                            commentsList.querySelector('.comments-empty');
         
         if (isFirstLoad) {
@@ -694,7 +695,9 @@ async function loadComments(gameId, card) {
         // We prepend each one, so we need to reverse to maintain newest-first order
         const newComments = data.items.filter(comment => !existingCommentIds.has(String(comment.id)));
         
-        // Reverse so oldest new comment is prepended first, then newer ones
+        // Reverse array so oldest new comment is prepended first, then newer ones
+        // This maintains the newest-first order in the UI
+        // Note: reverse() mutates the array, but newComments is only used here
         newComments.reverse().forEach(comment => {
             const commentEl = document.createElement('div');
             commentEl.className = 'comment-item';
