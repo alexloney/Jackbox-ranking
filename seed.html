@@ -104,7 +104,8 @@
             <li>You must be logged in with valid credentials</li>
         </ul>
         
-        <button id="seed-btn" class="seed-btn">Seed Database</button>
+        <button id="seed-btn" class="seed-btn">Seed Jackbox Database</button>
+        <button id="seed-kissing-btn" class="seed-btn">Seed Kissing Database</button>
         <div id="status-message" class="status-message"></div>
         
         <a href="index.html" class="back-link">← Back to Jackbox Ranking</a>
@@ -158,8 +159,8 @@
             return response.json();
         }
         
-        // Seed database function
-        async function seedDatabase() {
+        // Seed Jackbox database function
+        async function seedJackboxDatabase() {
             const btn = document.getElementById('seed-btn');
             
             // Check if user is logged in
@@ -273,9 +274,60 @@
                 btn.disabled = false;
             }
         }
-        
-        // Setup event listener
-        document.getElementById('seed-btn').addEventListener('click', seedDatabase);
+
+        // Seed Kissing database function
+        async function seedKissingDatabase() {
+            const btn = document.getElementById('seed-kissing-btn');
+
+            // Check if user is logged in
+            const authToken = localStorage.getItem('jackbox_token');
+            if (!authToken) {
+                showStatus('Error: You must be logged in first. Please login via index.html', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            showStatus('Seeding kissing database...', 'info');
+
+            try {
+                const kissesToSeed = [
+                    { pack: "Kisses", name: "Almond", img: "img/kisses/almonds.jpg" },
+                    { pack: "Kisses", name: "Birthday Cake", img: "img/kisses/birthday-cake.jpg" },
+                    { pack: "Kisses", name: "Cafe Moka", img: "img/kisses/cafe-moka.jpg" },
+                    { pack: "Kisses", name: "Cherry Cordial", img: "img/kisses/cherry-cordial.jpg" },
+                    { pack: "Kisses", name: "Chocolate Dipped Strawberry", img: "img/kisses/chocolate-dipped-strawberry.jpg" },
+                    { pack: "Kisses", name: "Cinnamon Toast Crunch", img: "img/kisses/cinnamon-toast-crunch.jpg" },
+                    { pack: "Kisses", name: "Cookies n Creme", img: "img/kisses/cookies-n-creme.jpg" },
+                    { pack: "Kisses", name: "Hot Cocoa", img: "img/kisses/hot-cocoa.jpg" },
+                    { pack: "Kisses", name: "Hugs", img: "img/kisses/hugs.jpg" },
+                    { pack: "Kisses", name: "Milk Chocolate", img: "img/kisses/milk-chocolate.jpg" },
+                    { pack: "Kisses", name: "Mint Truffle", img: "img/kisses/mint-truffle.jpg" },
+                    { pack: "Kisses", name: "Rainbow Brownie", img: "img/kisses/rainbow-brownie.jpg" },
+                    { pack: "Kisses", name: "Snickerdoodle Cookie", img: "img/kisses/snickerdoodle-cookie.jpg" },
+                    { pack: "Kisses", name: "Special Dark", img: "img/kisses/special-dark.jpg" },
+                    { pack: "Kisses", name: "Strawberry Ice Cream Cone", img: "img/kisses/strawberry-ice-cream-cone.jpg" },
+                    { pack: "Kisses", name: "Sugar Cookie", img: "img/kisses/sugar-cookie.jpg" }
+                ];
+
+                for (const kiss of kissesToSeed) {
+                    await apiRequest('/api/games', {
+                        method: 'POST',
+                        body: JSON.stringify(kiss)
+                    });
+                }
+
+                showStatus('Success! Kissing database seeded.', 'success');
+            } catch (error) {
+                console.error('Seeding error:', error);
+                showStatus('Error: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Setup event listeners
+        document.getElementById('seed-btn').addEventListener('click', seedJackboxDatabase);
+        document.getElementById('seed-kissing-btn').addEventListener('click', seedKissingDatabase);
     </script>
 </body>
 </html>
