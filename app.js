@@ -10,6 +10,8 @@ let currentUser = null;
 let games = [];
 let scores = {};
 let subscriptions = [];
+// Track expanded comment sections for auto-refresh
+let expandedCommentSections = new Map(); // gameId -> { card, intervalId }
 
 // DOM Elements
 const loginScreen = document.getElementById('login-screen');
@@ -192,6 +194,7 @@ function handleLogout() {
     localStorage.removeItem('jackbox_token');
     localStorage.removeItem('jackbox_userId');
     unsubscribeAll();
+    stopAllCommentAutoRefresh();
     
     // Call logout endpoint if we have a token
     if (authToken) {
@@ -454,12 +457,16 @@ function createGameCard(game) {
             // Collapse
             commentSection.style.display = 'none';
             chevron.style.transform = 'rotate(0deg)';
+            // Stop auto-refresh when collapsed
+            stopCommentAutoRefresh(game.id);
         } else {
             // Expand
             commentSection.style.display = 'block';
             chevron.style.transform = 'rotate(180deg)';
             // Load comments when expanding
             await loadComments(game.id, card);
+            // Start auto-refresh when expanded
+            startCommentAutoRefresh(game.id, card);
         }
     });
     
@@ -668,11 +675,33 @@ async function loadComments(gameId, card) {
             return;
         }
         
-        // Render comments
-        commentsList.innerHTML = '';
-        data.items.forEach(comment => {
+        // Get existing comment IDs to avoid duplicates
+        const existingCommentIds = new Set(
+            Array.from(commentsList.querySelectorAll('.comment-item'))
+                .map(el => el.dataset.commentId)
+                .filter(id => id)
+        );
+        
+        // Check if we need to re-render everything (e.g., first load or empty state)
+        const isFirstLoad = commentsList.children.length === 0 || 
+                           commentsList.querySelector('.comments-loading') || 
+                           commentsList.querySelector('.comments-empty');
+        
+        if (isFirstLoad) {
+            commentsList.innerHTML = '';
+        }
+        
+        // Render comments - API returns newest first (ORDER BY created DESC)
+        // We prepend each one, so we need to reverse to maintain newest-first order
+        const newComments = data.items.filter(comment => !existingCommentIds.has(String(comment.id)));
+        
+        // Reverse array so oldest new comment is prepended first, then newer ones
+        // This maintains the newest-first order in the UI
+        // Note: reverse() mutates the array, but newComments is only used here
+        newComments.reverse().forEach(comment => {
             const commentEl = document.createElement('div');
             commentEl.className = 'comment-item';
+            commentEl.dataset.commentId = String(comment.id);
             
             const username = comment.expand?.user?.email?.replace('@example.com', '') || 'Anonymous';
             const date = new Date(comment.created);
@@ -686,12 +715,61 @@ async function loadComments(gameId, card) {
                 <div class="comment-text">${escapeHtml(comment.comment)}</div>
             `;
             
-            commentsList.appendChild(commentEl);
+            // Prepend new comments to the top
+            commentsList.insertBefore(commentEl, commentsList.firstChild);
         });
     } catch (error) {
         console.error('Failed to load comments:', error);
         commentsList.innerHTML = '<div class="comments-error">Failed to load comments</div>';
     }
+}
+
+// Start auto-refresh for comment section
+function startCommentAutoRefresh(gameId, card) {
+    // Don't start if already running
+    if (expandedCommentSections.has(gameId)) {
+        return;
+    }
+    
+    // Use recursive setTimeout to avoid overlapping requests
+    let timeoutId;
+    const pollComments = async () => {
+        try {
+            await loadComments(gameId, card);
+        } catch (error) {
+            console.error('Error polling comments:', error);
+        }
+        
+        // Schedule next poll only after current one completes
+        // Check if still expanded before scheduling next poll
+        if (expandedCommentSections.has(gameId)) {
+            timeoutId = setTimeout(pollComments, 5000);
+            // Update the stored timeout ID
+            expandedCommentSections.get(gameId).timeoutId = timeoutId;
+        }
+    };
+    
+    // Start first poll after 5 seconds
+    timeoutId = setTimeout(pollComments, 5000);
+    
+    expandedCommentSections.set(gameId, { card, timeoutId });
+}
+
+// Stop auto-refresh for comment section
+function stopCommentAutoRefresh(gameId) {
+    const section = expandedCommentSections.get(gameId);
+    if (section) {
+        clearTimeout(section.timeoutId);
+        expandedCommentSections.delete(gameId);
+    }
+}
+
+// Stop all auto-refresh intervals (called on logout)
+function stopAllCommentAutoRefresh() {
+    expandedCommentSections.forEach((section, gameId) => {
+        clearTimeout(section.timeoutId);
+    });
+    expandedCommentSections.clear();
 }
 
 // Show error message inline instead of alert
