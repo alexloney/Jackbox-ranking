@@ -76,6 +76,10 @@ if (!fs.existsSync(dbDir)) {
 
 const db = new Database(dbPath);
 
+// Configure SQLite for better concurrency
+db.pragma('journal_mode = WAL');
+db.pragma('busy_timeout = 5000');
+
 // Create tables
 db.exec(`
     CREATE TABLE IF NOT EXISTS users (
