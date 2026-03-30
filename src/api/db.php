@@ -9,6 +9,9 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 } catch (PDOException $e) {
-    die("Database connection failed: " . $e->getMessage());
+    header('Content-Type: application/json');
+    http_response_code(503);
+    echo json_encode(['error' => 'Database connection failed']);
+    exit;
 }
 ?>
