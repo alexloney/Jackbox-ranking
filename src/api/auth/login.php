@@ -19,8 +19,8 @@ switch($method) {
         }
 
         // Check if user exists (case-insensitive to match existing.php behaviour)
-        $stmt = $pdo->prepare('SELECT id, username FROM users WHERE lower(username) = lower(?)');
-        $stmt->execute([$username]);
+        $stmt = $pdo->prepare('SELECT u.id, u.username FROM users u LEFT JOIN user_aliases a ON u.id = a.user_id WHERE lower(u.username) = lower(?) OR lower(a.alias) = lower(?) LIMIT 1');
+        $stmt->execute([$username, $username]);
         $user = $stmt->fetch();
 
         if (!$user) {

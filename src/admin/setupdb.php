@@ -105,4 +105,28 @@ if ($version == '1') {
     echo "No migrations needed. Current version is up to date.<br>";
 }
 
+if ($version == '2') {
+    echo "Running migrations for version 2 -> 3...<br>";
+
+    // Add any new tables or columns needed for version 3 here.
+    $sql = "CREATE TABLE user_aliases (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        alias VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )";
+    $pdo->exec($sql);
+    echo "Table 'user_aliases' created successfully.<br>";
+
+    $sql = "UPDATE config SET setting_value = '3' WHERE setting_key = 'version'";
+    $pdo->exec($sql);
+    echo "Config version updated to 3.<br>";
+    
+    $version = $pdo->query("SELECT setting_value FROM config WHERE setting_key = 'version'")->fetchColumn();
+    echo "Current config version: $version<br>";
+} else {
+    echo "No migrations needed. Current version is up to date.<br>";
+}
+
 // TODO: Add version migrations here
