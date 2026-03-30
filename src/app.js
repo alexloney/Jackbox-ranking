@@ -43,11 +43,11 @@ async function authenticateUser(username) {
         
         const data = await response.json();
         currentUserId = data.user.id;
-        username = data.user.username;
+        currentUser = data.user.name;
         
         // Store token in localStorage for session persistence
         localStorage.setItem('user_id', currentUserId);
-        localStorage.setItem('username', username);
+        localStorage.setItem('username', currentUser);
     } catch (error) {
         console.error('Failed to authenticate:', error);
         throw new Error('Backend database is not available. Please ensure the server is running.');
@@ -159,19 +159,21 @@ async function handleLogin(e) {
     const username = usernameInput.value.trim();
     
     if (username) {
-        currentUser = username;
-        localStorage.setItem('username', username);
-        
         // Authenticate with Backend API
         try {
             await authenticateUser(username);
+            // currentUser and currentUserId are set by authenticateUser from the server response
+            localStorage.setItem('username', currentUser);
+            localStorage.setItem('user_id', currentUserId);
             showAppScreen();
             await loadGames();
         } catch (error) {
             console.error('Login failed:', error);
             alert('Error: Login failed. Please try again.');
             currentUser = null;
+            currentUserId = null;
             localStorage.removeItem('username');
+            localStorage.removeItem('user_id');
         }
     }
 }

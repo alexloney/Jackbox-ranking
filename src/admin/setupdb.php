@@ -4,7 +4,7 @@
 include '../api/db.config.php';
 try {
     // Create database if it doesn't exist
-    $conn = new mysqli($host, $username, $password);
+    $conn = new mysqli($host, $username, $password, null, (int)$port);
     if ($conn->connect_error) {
         die("Connection failed: " . $conn->connect_error);
     }
