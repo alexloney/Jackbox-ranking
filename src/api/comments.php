@@ -16,10 +16,25 @@ switch($method) {
             echo json_encode(['error' => 'Game ID is required']);
             exit;
         }
-        $sql = 'SELECT c.id, c.comment, u.username AS user, c.created_at as created FROM comments c JOIN users u ON c.user_id = u.id WHERE c.game_id = ? ORDER BY c.created_at DESC';
+        $sql = 'SELECT c.id, c.comment, u.username AS user, c.created_at as created 
+                FROM comments c 
+                JOIN users u ON c.user_id = u.id 
+                WHERE c.game_id = ? 
+                ORDER BY c.created_at DESC';
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$game_id]);
-        $comments = $stmt->fetchAll();
+        $comments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Convert database UTC to local Pacific Time
+        foreach ($comments as &$row) {
+            $date = new DateTime($row['created'], new DateTimeZone('UTC'));
+            $date->setTimezone(new DateTimeZone('America/Los_Angeles'));
+            
+            // Format to match JS toLocaleString() output
+            $row['created'] = $date->format('n/j/Y, g:i:s A'); 
+        }
+        unset($row);
+
         echo json_encode(['items' => $comments]);
 
         break;

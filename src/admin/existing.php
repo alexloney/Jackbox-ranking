@@ -54,19 +54,29 @@ if (file_exists($commentsFile)) {
     
     foreach ($comments as $line) {
         $parts = explode("\t", $line);
-        if (count($parts) >= 4) {
+        if (count($parts) >= 5) {
             $comment = trim($parts[0]);
             $username = trim($parts[1]);
             $gameName = trim($parts[2]);
             $gamePack = trim($parts[3]);
+            $createdAt = trim($parts[4]);
             
             $user_id = getUserId($pdo, $username);
             $game_id = getGameId($pdo, $gameName, $gamePack);
             
             if ($user_id && $game_id) {
-                $sql = "INSERT INTO comments (comment, user_id, game_id) VALUES (:comment, :user_id, :game_id)";
+                // Convert ISO 8601 datetime to MySQL format
+                $dateTime = new DateTime($createdAt);
+                $mysqlDateTime = $dateTime->format('Y-m-d H:i:s');
+                
+                $sql = "INSERT INTO comments (comment, user_id, game_id, created_at) VALUES (:comment, :user_id, :game_id, :created_at)";
                 $stmt = $pdo->prepare($sql);
-                $stmt->execute([':comment' => $comment, ':user_id' => $user_id, ':game_id' => $game_id]);
+                $stmt->execute([
+                    ':comment' => $comment, 
+                    ':user_id' => $user_id, 
+                    ':game_id' => $game_id,
+                    ':created_at' => $mysqlDateTime
+                ]);
                 $commentCount++;
             } else {
                 echo "Warning: Could not insert comment - User: $username, Game: $gameName ($gamePack)<br>";

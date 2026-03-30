@@ -28,7 +28,7 @@ $gamesToSeed = [
     [ "pack" => "Party Pack 4", "name" => "Bracketeering", "img" => "img/pp4/bracketeering.png" ],
     [ "pack" => "Party Pack 4", "name" => "Civic Doodle", "img" => "img/pp4/civic-doodle.png" ],
 
-    [ "pack" => "Party Pack 5", "name" => "You Don't Know Jack => Full Stream", "img" => "img/pp5/you-dont-know-jack-full-stream.png" ],
+    [ "pack" => "Party Pack 5", "name" => "You Don't Know Jack: Full Stream", "img" => "img/pp5/you-dont-know-jack-full-stream.png" ],
     [ "pack" => "Party Pack 5", "name" => "Split the Room", "img" => "img/pp5/split-the-room.png" ],
     [ "pack" => "Party Pack 5", "name" => "Mad Verse City", "img" => "img/pp5/mad-verse-city.png" ],
     [ "pack" => "Party Pack 5", "name" => "Patently Stupid", "img" => "img/pp5/patently-stupid.png" ],
