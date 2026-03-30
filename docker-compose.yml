@@ -1,16 +1,52 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  jackbox-ranking:
+  web:
     build: .
-    container_name: jackbox_app
-    restart: unless-stopped
+    container_name: php-web-app
     ports:
-      - "3000:3000"
+      - "8080:80"
     volumes:
-      # Persist database
-      - ./data:/app/data
+      - ./src:/var/www/html
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - DB_PATH=/app/data/jackbox.db
+      - APACHE_DOCUMENT_ROOT=/var/www/html
+      # Pass database environment variables to PHP container
+      - MYSQL_HOST=${MYSQL_HOST}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_PORT=${MYSQL_PORT}
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: php-mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT}:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: ${MYSQL_HOST}
+      PMA_PORT: ${MYSQL_PORT}
+      PMA_USER: ${PMA_USER}
+      PMA_PASSWORD: ${PMA_PASSWORD}
+    ports:
+      - "8081:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  db_data:

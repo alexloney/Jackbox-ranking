@@ -2,7 +2,6 @@
 // To change the backend URL for deployment, modify the value in index.html
 // Empty string ('') uses the current origin, recommended for production
 const API_URL = window.JACKBOX_CONFIG?.backendUrl || '';
-let authToken = null;
 let currentUserId = null;
 
 // App State
@@ -29,15 +28,13 @@ const packFilter = document.getElementById('pack-filter');
 
 // Authenticate User with Backend API
 async function authenticateUser(username) {
-    const email = `${username.toLowerCase()}@example.com`;
-    
     try {
-        const response = await fetch(`${API_URL}/api/auth/login`, {
+        const response = await fetch(`${API_URL}/api/auth/login.php`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email }),
+            body: JSON.stringify({ username }),
         });
         
         if (!response.ok) {
@@ -45,12 +42,12 @@ async function authenticateUser(username) {
         }
         
         const data = await response.json();
-        authToken = data.token;
         currentUserId = data.user.id;
+        username = data.user.username;
         
         // Store token in localStorage for session persistence
-        localStorage.setItem('jackbox_token', authToken);
-        localStorage.setItem('jackbox_userId', currentUserId);
+        localStorage.setItem('user_id', currentUserId);
+        localStorage.setItem('username', username);
     } catch (error) {
         console.error('Failed to authenticate:', error);
         throw new Error('Backend database is not available. Please ensure the server is running.');
@@ -63,10 +60,6 @@ async function apiRequest(endpoint, options = {}) {
         'Content-Type': 'application/json',
         ...options.headers,
     };
-    
-    if (authToken) {
-        headers['Authorization'] = `Bearer ${authToken}`;
-    }
     
     const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
@@ -88,23 +81,21 @@ async function initApp() {
     initTheme();
     
     // Check for existing session
-    const savedUser = localStorage.getItem('jackbox_user');
-    const savedToken = localStorage.getItem('jackbox_token');
-    const savedUserId = localStorage.getItem('jackbox_userId');
+    const savedUser = localStorage.getItem('username');
+    const savedUserId = localStorage.getItem('user_id');
     
-    if (savedUser && savedToken && savedUserId) {
+    if (savedUser && savedUserId) {
         currentUser = savedUser;
-        authToken = savedToken;
         currentUserId = savedUserId;
         
         // Verify token is still valid
         try {
-            await apiRequest('/api/auth/verify');
+            await apiRequest('/api/auth/verify.php');
             showAppScreen();
             await loadGames();
         } catch (error) {
             console.error('Session verification failed:', error);
-            alert('Error: Cannot connect to the backend database. Please ensure the server is running at ' + API_URL);
+            alert('Error: Session verification failed. Please login again.');
             handleLogout();
         }
     }
@@ -132,7 +123,7 @@ async function initApp() {
 
 // Theme Management
 function initTheme() {
-    const savedTheme = localStorage.getItem('jackbox_theme');
+    const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
         document.body.classList.add('dark-mode');
         updateThemeIcon(true);
@@ -141,7 +132,7 @@ function initTheme() {
 
 function toggleTheme() {
     const isDark = document.body.classList.toggle('dark-mode');
-    localStorage.setItem('jackbox_theme', isDark ? 'dark' : 'light');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
     updateThemeIcon(isDark);
 }
 
@@ -169,7 +160,7 @@ async function handleLogin(e) {
     
     if (username) {
         currentUser = username;
-        localStorage.setItem('jackbox_user', username);
+        localStorage.setItem('username', username);
         
         // Authenticate with Backend API
         try {
@@ -178,9 +169,9 @@ async function handleLogin(e) {
             await loadGames();
         } catch (error) {
             console.error('Login failed:', error);
-            alert('Error: Cannot connect to the backend database. Please ensure the server is running at ' + API_URL);
+            alert('Error: Login failed. Please try again.');
             currentUser = null;
-            localStorage.removeItem('jackbox_user');
+            localStorage.removeItem('username');
         }
     }
 }
@@ -188,20 +179,16 @@ async function handleLogin(e) {
 // Handle Logout
 function handleLogout() {
     currentUser = null;
-    authToken = null;
     currentUserId = null;
-    localStorage.removeItem('jackbox_user');
-    localStorage.removeItem('jackbox_token');
-    localStorage.removeItem('jackbox_userId');
+    localStorage.removeItem('username');
+    localStorage.removeItem('user_id');
     unsubscribeAll();
     stopAllCommentAutoRefresh();
     
     // Call logout endpoint if we have a token
-    if (authToken) {
-        apiRequest('/api/auth/logout', { method: 'POST' }).catch(err => {
-            console.warn('Logout request failed:', err);
-        });
-    }
+    apiRequest('/api/auth/logout.php', { method: 'POST' }).catch(err => {
+        console.warn('Logout request failed:', err);
+    });
     
     showLoginScreen();
 }
@@ -244,18 +231,18 @@ function switchTab(tabId) {
 
 // Load User Scores from Database
 async function loadUserScoresFromDB() {
-    if (!authToken || !currentUserId) {
+    if (!currentUserId) {
         return {};
     }
     
     try {
         // Fetch all scores for the current user
-        const data = await apiRequest(`/api/scores?user=${currentUserId}`);
+        const data = await apiRequest(`/api/scores.php?user_id=${currentUserId}`);
         
         // Map scores by game ID
         const scoresMap = {};
-        data.items.forEach(record => {
-            scoresMap[record.game] = record.score ?? 0;
+        data.scores.forEach(record => {
+            scoresMap[record.game_id] = record.score ?? 0;
         });
         
         return scoresMap;
@@ -269,7 +256,7 @@ async function loadUserScoresFromDB() {
 async function loadGames() {
     try {
         // Try to load from Backend API
-        const data = await apiRequest('/api/games');
+        const data = await apiRequest('/api/games.php');
         
         // Map API response to expected format
         games = data.items.map(record => ({
@@ -508,7 +495,7 @@ async function updateScore(gameId, newScore) {
     
     // Sync to Backend API if available
     try {
-        if (authToken && currentUserId) {
+        if (currentUserId) {
             await syncScoreToPocketBase(gameId, newScore);
         }
     } catch (error) {
@@ -530,13 +517,13 @@ function updateStarDisplay(card, score) {
 
 // Sync Score to Backend
 async function syncScoreToPocketBase(gameId, score) {
-    if (!authToken || !currentUserId) return;
+    if (!currentUserId) return;
     
     try {
-        await apiRequest('/api/scores', {
+        await apiRequest('/api/scores.php', {
             method: 'POST',
             body: JSON.stringify({
-                game: gameId,
+                game_id: gameId,
                 score: score,
             }),
         });
@@ -641,18 +628,18 @@ async function renderLeaderboard() {
 async function getAllVotes() {
     try {
         // Fetch all scores with user and game data
-        const data = await apiRequest('/api/scores');
+        const data = await apiRequest('/api/scores.php');
         
         // Fetch all users and games to join the data
-        const gamesData = await apiRequest('/api/games');
+        const gamesData = await apiRequest('/api/games.php');
         const gamesMap = {};
         gamesData.items.forEach(g => {
             gamesMap[g.id] = g.name;
         });
         
-        return data.items.map(r => ({
-            user: r.user, // Use full user ID as identifier
-            gameName: gamesMap[r.game] || 'Unknown',
+        return data.scores.map(r => ({
+            user: r.user_id, // Use full user ID as identifier
+            gameName: gamesMap[r.game_id] || 'Unknown',
             score: r.score || 0
         }));
     } catch (e) {
@@ -668,7 +655,7 @@ async function loadComments(gameId, card) {
     
     try {
         // Fetch comments for this game
-        const data = await apiRequest(`/api/comments?game=${gameId}`);
+        const data = await apiRequest(`/api/comments.php?game_id=${gameId}`);
         
         if (data.items.length === 0) {
             commentsList.innerHTML = '<div class="comments-empty">No comments yet. Be the first to comment!</div>';
@@ -703,7 +690,7 @@ async function loadComments(gameId, card) {
             commentEl.className = 'comment-item';
             commentEl.dataset.commentId = String(comment.id);
             
-            const username = comment.expand?.user?.email?.replace('@example.com', '') || 'Anonymous';
+            const username = comment.user || 'Anonymous';
             const date = new Date(comment.created);
             const formattedDate = date.toLocaleString();
             
@@ -788,17 +775,17 @@ function showCommentError(card, message) {
 
 // Submit a Comment
 async function submitComment(gameId, commentText, card) {
-    if (!authToken || !currentUserId) {
+    if (!currentUserId) {
         showCommentError(card, 'You must be logged in to comment');
         return;
     }
     
     try {
-        await apiRequest('/api/comments', {
+        await apiRequest('/api/comments.php', {
             method: 'POST',
             body: JSON.stringify({
                 comment: commentText,
-                game: gameId,
+                game_id: gameId,
             }),
         });
         

@@ -1,31 +1,19 @@
-# Use Node.js 18 Alpine for smaller image size
-FROM node:18-alpine
+FROM php:8.2-apache
+
+# Install MySQL extension and other common PHP extensions
+RUN docker-php-ext-install mysqli pdo pdo_mysql
+
+# Enable Apache mod_rewrite (useful for clean URLs)
+RUN a2enmod rewrite
+
+# Optional: Install additional useful extensions
+# RUN docker-php-ext-install bcmath gd zip
+
+# Optional: Set custom PHP configuration
+# COPY php.ini /usr/local/etc/php/
 
 # Set working directory
-WORKDIR /app
+WORKDIR /var/www/html
 
-# Install build dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy application files
-COPY . .
-
-# Create data directory for SQLite database
-RUN mkdir -p /app/data
-
-# Expose port 3000
-EXPOSE 3000
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV DB_PATH=/app/data/jackbox.db
-
-# Start the server
-CMD ["node", "server.js"]
+# The volume mount in docker-compose.yml will override this directory
+# but it's good practice to set it

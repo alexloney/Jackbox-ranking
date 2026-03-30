@@ -1,0 +1,65 @@
+deadric	5.0	Tee K.O.	Party Pack 3
+lex	4.0	Tee K.O.	Party Pack 3
+silas	5.0	Tee K.O.	Party Pack 3
+aledyn	4.0	Tee K.O.	Party Pack 3
+willow	5.0	Tee K.O.	Party Pack 3
+silas	2.0	Guesspionage	Party Pack 3
+willow	3.0	Guesspionage	Party Pack 3
+deadric	4.0	Guesspionage	Party Pack 3
+lex	4.0	Guesspionage	Party Pack 3
+aledyn	4.0	Guesspionage	Party Pack 3
+lex	4.0	Quiplash 2	Party Pack 3
+ale	4.0	Quiplash 2	Party Pack 3
+silas	4.0	Quiplash 2	Party Pack 3
+deadric	3.0	Quiplash 2	Party Pack 3
+willow	4.0	Quiplash 2	Party Pack 3
+pooka	4.0	Bidiots	Party Pack 2
+pooka	5.0	Blather 'Round	Party Pack 7
+pooka	4.0	Bomb Corp.	Party Pack 2
+pooka	3.0	Bracketeering	Party Pack 4
+pooka	3.0	Champ'd Up	Party Pack 7
+pooka	2.0	Civic Doodle	Party Pack 4
+pooka	3.0	Dictionarium	Party Pack 6
+pooka	2.0	Dodo Re Mi	Party Pack 10
+pooka	4.0	Drawful	Party Pack 1
+pooka	5.0	Drawful 2	Standalone
+pooka	5.0	Drawful Animate	Party Pack 8
+pooka	3.0	Earwax	Party Pack 2
+pooka	4.0	Fakin' It	Party Pack 3
+pooka	5.0	Fibbage 2	Party Pack 2
+pooka	5.0	Fibbage 3	Party Pack 4
+pooka	5.0	Fibbage 4	Party Pack 9
+pooka	5.0	Fibbage XL	Party Pack 1
+pooka	4.0	FixyText	Party Pack 10
+pooka	5.0	Guesspionage	Party Pack 3
+pooka	3.0	Hypnotorious	Party Pack 10
+pooka	5.0	Job Job	Party Pack 8
+pooka	3.0	Joke Boat	Party Pack 6
+pooka	4.0	Junktopia	Party Pack 9
+pooka	1.0	Lie Swatter	Party Pack 1
+pooka	3.0	Mad Verse City	Party Pack 5
+pooka	3.0	Monster Seeking Monster	Party Pack 4
+pooka	4.0	Nonsensory	Party Pack 9
+pooka	4.0	Patently Stupid	Party Pack 5
+pooka	3.0	Push The Button	Party Pack 6
+pooka	4.0	Quiplash	Party Pack 2
+pooka	5.0	Quiplash 2	Party Pack 3
+pooka	5.0	Quiplash 3	Party Pack 7
+pooka	4.0	Role Models	Party Pack 6
+pooka	5.0	Roomerang	Party Pack 9
+pooka	4.0	Split the Room	Party Pack 5
+pooka	5.0	Survive the Internet	Party Pack 4
+pooka	5.0	Talking Points	Party Pack 7
+pooka	4.0	Tee K.O. 2	Party Pack 10
+pooka	3.0	Tee K.O.	Party Pack 3
+pooka	5.0	The Jackbox Survey Scramble	Standalone
+pooka	5.0	The Poll Mine	Party Pack 8
+pooka	5.0	The Wheel of Enormous Proportions	Party Pack 8
+pooka	5.0	Timejinx	Party Pack 10
+pooka	5.0	Trivia Murder Party	Party Pack 3
+pooka	5.0	Trivia Murder Party 2	Party Pack 6
+pooka	5.0	You Don't Know Jack 2015	Party Pack 1
+pooka	5.0	You Don't Know Jack: Full Stream	Party Pack 5
+pooka	3.0	Zeeple Dome	Party Pack 5
+pooka	2.0	Word Spud	Party Pack 1
+pooka	2.0	Weapons Drawn	Party Pack 8
