@@ -39,7 +39,7 @@ try {
         echo "Table 'config' already exists.<br>";
     } else {
         // Note: CREATE TABLE causes an implicit commit in MySQL, so no transaction wrapper needed
-        $sql = "CREATE TABLE config (
+        $sql = "CREATE TABLE IF NOT EXISTS config (
             id INT AUTO_INCREMENT PRIMARY KEY,
             setting_key VARCHAR(255) NOT NULL UNIQUE,
             setting_value VARCHAR(50) NOT NULL,
@@ -71,7 +71,7 @@ $migrations = [];
 $migrations[2] = function($pdo) {
     echo "Running migration 1 -> 2: Creating core tables...<br>";
     
-    $pdo->exec("CREATE TABLE users (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(255) NOT NULL UNIQUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -79,7 +79,7 @@ $migrations[2] = function($pdo) {
     )");
     echo "- Table 'users' created<br>";
 
-    $pdo->exec("CREATE TABLE games (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS games (
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         pack VARCHAR(255) NOT NULL,
@@ -89,7 +89,7 @@ $migrations[2] = function($pdo) {
     )");
     echo "- Table 'games' created<br>";
 
-    $pdo->exec("CREATE TABLE scores (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS scores (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
         game_id INT NOT NULL,
@@ -104,7 +104,7 @@ $migrations[2] = function($pdo) {
     )");
     echo "- Table 'scores' created with unique constraint<br>";
 
-    $pdo->exec("CREATE TABLE comments (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS comments (
         id INT AUTO_INCREMENT PRIMARY KEY,
         comment TEXT NOT NULL,
         user_id INT NOT NULL,
@@ -125,7 +125,7 @@ $migrations[2] = function($pdo) {
 $migrations[3] = function($pdo) {
     echo "Running migration 2 -> 3: Adding user aliases...<br>";
     
-    $pdo->exec("CREATE TABLE user_aliases (
+    $pdo->exec("CREATE TABLE IF NOT EXISTS user_aliases (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
         alias VARCHAR(255) NOT NULL,
