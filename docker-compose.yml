@@ -3,7 +3,7 @@ version: '3.8'
 services:
   web:
     build: .
-    container_name: php-web-app
+    container_name: jackbox_web
     ports:
       - "8080:80"
     volumes:
@@ -24,13 +24,16 @@ services:
   db:
     image: mysql:8.0
     container_name: php-mysql-db
+    command:
+      - --innodb-flush-log-at-trx-commit=2
+      - --skip-log-bin
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "${MYSQL_PORT}:3306"
+      - "3306"
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
@@ -58,3 +61,4 @@ services:
 
 volumes:
   db_data:
+
