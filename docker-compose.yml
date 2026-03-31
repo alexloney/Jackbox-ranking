@@ -27,6 +27,14 @@ services:
     command:
       - --innodb-flush-log-at-trx-commit=2
       - --skip-log-bin
+      - --innodb-flush-method=O_DIRECT
+      - --innodb-doublewrite=0
+      - --innodb-io-capacity=2000
+      - --innodb-io-capacity-max=4000
+      - --innodb-buffer-pool-size=256M
+      - --innodb-log-file-size=128M
+      - --innodb-write-io-threads=8
+      - --innodb-read-io-threads=8
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -36,6 +44,8 @@ services:
       - "3306"
     volumes:
       - db_data:/var/lib/mysql
+    tmpfs:
+      - /tmp:size=512M,mode=1777
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
