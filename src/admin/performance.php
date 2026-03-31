@@ -150,12 +150,14 @@ if ($run) {
     // ---------------------------------------------------------------
     // 7. INSERT + DELETE score (write-path latency)
     // ---------------------------------------------------------------
-    // Use a temporary user and game to avoid conflicts
+    // Use a temporary user and game to avoid conflicts.
+    // The username is unique per run using uniqid() to allow safe repeated execution.
     $tempUserId = null;
     $tempGameId = null;
     $writeError = null;
+    $tempUsername = '__perf_test_' . uniqid() . '__';
     try {
-        $pdo->exec("INSERT INTO users (username) VALUES ('__perf_test_user__')");
+        $pdo->prepare("INSERT INTO users (username) VALUES (?)")->execute([$tempUsername]);
         $tempUserId = (int) $pdo->lastInsertId();
         $tempGameId = (int) ($pdo->query("SELECT id FROM games LIMIT 1")->fetchColumn() ?: 0);
     } catch (Exception $e) {
@@ -169,7 +171,7 @@ if ($run) {
             'query'       => 'INSERT INTO scores (user_id, game_id, score) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)',
             'result'      => benchmark(function() use ($pdo, $tempUserId, $tempGameId) {
                 $stmt = $pdo->prepare("INSERT INTO scores (user_id, game_id, score) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score)");
-                $stmt->execute([$tempUserId, $tempGameId, rand(1, 5)]);
+                $stmt->execute([$tempUserId, $tempGameId, 3]);
             }, $iterations),
         ];
 

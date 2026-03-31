@@ -70,7 +70,7 @@ try {
 function buildQuery(array $overrides = []): string {
     $base = ['search' => trim($_GET['search'] ?? ''), 'page' => 1];
     $params = array_merge($base, $overrides);
-    return '?' . http_build_query(array_filter($params, fn($v) => $v !== '' && $v !== 0 && $v !== '0'));
+    return '?' . http_build_query(array_filter($params, fn($v) => $v !== '' && $v !== 0));
 }
 ?>
 <!DOCTYPE html>
